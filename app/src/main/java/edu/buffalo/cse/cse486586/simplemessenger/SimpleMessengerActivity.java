@@ -1,11 +1,18 @@
 package edu.buffalo.cse.cse486586.simplemessenger;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -152,29 +159,43 @@ public class SimpleMessengerActivity extends Activity {
 
         @Override
         protected Void doInBackground(ServerSocket... sockets) {
-            // param: sockets[0] = port
             ServerSocket serverSocket = sockets[0];
-            
+
             /*
              * TODO: Fill in your server code that receives messages and passes them
              * to onProgressUpdate().
              */
 
+            Socket socket = null;
+
             try {
-                // We can use method publishProgress(Progress... values) to update the msg.
-                Socket socket = null;
-                while (socket != null) socket = serverSocket.accept();
-                InputStreamReader inStream = new InputStreamReader(socket.getInputStream());
-                BufferedReader buf =  new BufferedReader(inStream);
-                this.publishProgress(buf.toString());
+                while (true) {
+                    socket = serverSocket.accept();
+                    if (socket != null) {
+                        Log.d(TAG, "S: Success accept " + socket.getRemoteSocketAddress().toString());
 
-                try {
-                    buf.close();
+                        OutputStream out = socket.getOutputStream();
+                        InputStream in = socket.getInputStream();
+
+                        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                        int nRead;
+                        byte[] data = new byte[1024];
+                        while ((nRead = in.read(data, 0, data.length)) != -1)
+                            buffer.write(data, 0, nRead);
+                        buffer.flush();
+                        byte[] bytes = buffer.toByteArray();
+                        String msg = new String(bytes);
+
+                        publishProgress(msg);
+                        Log.d(TAG, "S: Publish buf " + msg.toString());
+
+                        buffer.close();
+                        in.close();
+                        out.close();
+                    }
                     socket.close();
-                } catch (IOException e) {
-                    Log.e(TAG, "Server IO close Exception");
+                    Log.d(TAG, "S: Close server socket.");
                 }
-
             } catch (Exception e) {
                 Log.e(TAG, "Server Socket Exception.");
             }
@@ -240,34 +261,33 @@ public class SimpleMessengerActivity extends Activity {
 
                 // Listening server socket by connecting 10.0.2.2:11108/11112
                 // Socket(String host, int port), creates a stream socket and connects
-                // This is a client
+                // Client Socket
                 Socket socket = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
                         Integer.parseInt(remotePort));
-                
+
                 String msgToSend = msgs[0];
 
                 /*
                  * TODO: Fill in your client code that sends out a message.
                  */
-                socket.setSoTimeout(3000);
+                socket.setSendBufferSize(128);
+                Log.d(TAG, "C: socket Addr " + socket.getRemoteSocketAddress().toString());
 
                 if (socket.isConnected()) {
-                    // Commucation with server through socket
-                    OutputStream outStream = socket.getOutputStream();
-                    OutputStreamWriter out = new OutputStreamWriter(outStream);
-                    out.write(msgToSend, 0, 128);
+                    Log.d(TAG, "C: Successful connected.");
+                    socket.setKeepAlive(true);
+                    socket.setSoTimeout(3000);
 
-                    try {
-                        out.close();
-                        outStream.close();
-                        socket.close();
-                    } catch (IOException e) {
-                        Log.e(TAG, "Client IO close Exception");
-                    }
-                } else {
-                    socket.close();
-                    Log.i(TAG, "Client socket is not connected.");
+                    // Send/Receive data to the server through socket
+                    OutputStream out = socket.getOutputStream();
+                    InputStream in = socket.getInputStream();
+
+                    out.write(msgToSend.getBytes());
+
+                    out.close();
+                    in.close();
                 }
+                socket.close();
 
             } catch (UnknownHostException e) {
                 Log.e(TAG, "ClientTask UnknownHostException");
