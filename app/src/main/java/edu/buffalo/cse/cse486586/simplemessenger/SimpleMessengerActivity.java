@@ -164,11 +164,17 @@ public class SimpleMessengerActivity extends Activity {
                 // We can use method publishProgress(Progress... values) to update the msg.
                 Socket socket = null;
                 while (socket != null) socket = serverSocket.accept();
-                InputStreamReader in = new InputStreamReader(socket.getInputStream());
-                BufferedReader buf =  new BufferedReader(in);
+                InputStreamReader inStream = new InputStreamReader(socket.getInputStream());
+                BufferedReader buf =  new BufferedReader(inStream);
+                this.publishProgress(buf.toString());
 
-                buf.close();
-                socket.close();
+                try {
+                    buf.close();
+                    socket.close();
+                } catch (IOException e) {
+                    Log.e(TAG, "Server IO close Exception");
+                }
+
             } catch (Exception e) {
                 Log.e(TAG, "Server Socket Exception.");
             }
@@ -256,7 +262,7 @@ public class SimpleMessengerActivity extends Activity {
                         outStream.close();
                         socket.close();
                     } catch (IOException e) {
-                        Log.e(TAG, "IO close Exception");
+                        Log.e(TAG, "Client IO close Exception");
                     }
                 } else {
                     socket.close();
