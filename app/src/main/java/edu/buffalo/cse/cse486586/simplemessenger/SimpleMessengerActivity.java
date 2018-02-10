@@ -1,18 +1,10 @@
 package edu.buffalo.cse.cse486586.simplemessenger;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -172,29 +164,29 @@ public class SimpleMessengerActivity extends Activity {
                 while (true) {
                     socket = serverSocket.accept();
                     if (socket != null) {
-                        Log.d(TAG, "S: Success accept " + socket.getRemoteSocketAddress().toString());
+                        Log.d(TAG, "S: Success accepted " + socket.getRemoteSocketAddress().toString());
 
                         OutputStream out = socket.getOutputStream();
                         InputStream in = socket.getInputStream();
 
                         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                        byte[] bytes = new byte[1024];
                         int nRead;
-                        byte[] data = new byte[1024];
-                        while ((nRead = in.read(data, 0, data.length)) != -1)
-                            buffer.write(data, 0, nRead);
+                        while ((nRead = in.read(bytes, 0, bytes.length)) != -1)
+                            buffer.write(bytes, 0, nRead);
                         buffer.flush();
-                        byte[] bytes = buffer.toByteArray();
-                        String msg = new String(bytes);
+                        String msg = new String(buffer.toByteArray());
 
                         publishProgress(msg);
-                        Log.d(TAG, "S: Publish buf " + msg.toString());
+                        Log.d(TAG, "S: Received MSG " + msg);
 
                         buffer.close();
                         in.close();
                         out.close();
                     }
+
                     socket.close();
-                    Log.d(TAG, "S: Close server socket.");
+                    Log.d(TAG, "S: Server socket closed.");
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Server Socket Exception.");
@@ -270,24 +262,25 @@ public class SimpleMessengerActivity extends Activity {
                 /*
                  * TODO: Fill in your client code that sends out a message.
                  */
-                socket.setSendBufferSize(128);
-                Log.d(TAG, "C: socket Addr " + socket.getRemoteSocketAddress().toString());
-
                 if (socket.isConnected()) {
-                    Log.d(TAG, "C: Successful connected.");
+                    socket.setSendBufferSize(128);
                     socket.setKeepAlive(true);
                     socket.setSoTimeout(3000);
+                    Log.d(TAG, "C: Successful connected " + socket.getRemoteSocketAddress().toString());
 
                     // Send/Receive data to the server through socket
-                    OutputStream out = socket.getOutputStream();
                     InputStream in = socket.getInputStream();
+                    OutputStream out = socket.getOutputStream();
 
                     out.write(msgToSend.getBytes());
+                    Log.d(TAG, "C: Sent MSG " + msgToSend);
 
                     out.close();
                     in.close();
                 }
+
                 socket.close();
+                Log.d(TAG, "C: Client socket closed.");
 
             } catch (UnknownHostException e) {
                 Log.e(TAG, "ClientTask UnknownHostException");
