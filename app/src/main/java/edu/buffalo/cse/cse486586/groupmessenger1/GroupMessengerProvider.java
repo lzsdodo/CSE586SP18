@@ -3,6 +3,7 @@ package edu.buffalo.cse.cse486586.groupmessenger1;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.util.Log;
 
@@ -25,6 +26,9 @@ import android.util.Log;
  *
  */
 public class GroupMessengerProvider extends ContentProvider {
+
+    private SQLiteHelper dbHelper;
+    private SQLiteDatabase db;
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
@@ -50,6 +54,11 @@ public class GroupMessengerProvider extends ContentProvider {
          * internal storage option that we used in PA1. If you want to use that option, please
          * take a look at the code for PA1.
          */
+
+        db = dbHelper.getWritableDatabase();
+        long newRowId = db.insertWithOnConflict(dbHelper.TABLE_NAME,
+                dbHelper.getNullColumnHack(), values, db.CONFLICT_IGNORE);
+
         Log.v("insert", values.toString());
         return uri;
     }
@@ -57,7 +66,8 @@ public class GroupMessengerProvider extends ContentProvider {
     @Override
     public boolean onCreate() {
         // If you need to perform any one-time initialization task, please do it here.
-        return false;
+        dbHelper = new SQLiteHelper(getContext());
+        return true;
     }
 
     @Override
@@ -80,7 +90,18 @@ public class GroupMessengerProvider extends ContentProvider {
          * recommend building a MatrixCursor described at:
          * http://developer.android.com/reference/android/database/MatrixCursor.html
          */
+
+        db = dbHelper.getReadableDatabase();
+
+        String[] columns = new String[] {dbHelper.COLUMN_NAME_KEY, dbHelper.COLUMN_NAME_VALUE};
+        String newSelecttion = dbHelper.COLUMN_NAME_KEY + "=?";
+        String[] keyToRead = new String[] {selection};
+
+        Cursor c = db.query(dbHelper.TABLE_NAME, columns, newSelecttion, keyToRead,
+                null, null, null, "1");
+        c.moveToFirst();
+
         Log.v("query", selection);
-        return null;
+        return c;
     }
 }
