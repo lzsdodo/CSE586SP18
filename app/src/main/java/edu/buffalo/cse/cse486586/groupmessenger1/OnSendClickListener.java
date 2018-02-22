@@ -29,7 +29,6 @@ public class OnSendClickListener implements OnClickListener {
             et.setText(""); // reset input box
             tv.append("Sending msg.\n");
 
-
 //            private String[] remotePorts = new String[] {"11108", "11112", "11116", "11120", "11124"};
 //            new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg, "11108"); // avd0
 //            for (String port:remotePorts) {

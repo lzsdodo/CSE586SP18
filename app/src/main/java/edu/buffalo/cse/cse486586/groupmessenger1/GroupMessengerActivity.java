@@ -1,12 +1,24 @@
 package edu.buffalo.cse.cse486586.groupmessenger1;
 
 import android.app.Activity;
+import android.content.Context;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.telephony.TelephonyManager;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.Menu;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 /**
  * GroupMessengerActivity is the main Activity for the assignment.
@@ -18,8 +30,14 @@ public class GroupMessengerActivity extends Activity {
 
     static final String TAG = GroupMessengerActivity.class.getSimpleName();
 
+    // Related to UI
     public TextView mTextView;
     public EditText mEditText;
+
+    // Related to TCP
+    static final int SERVER_PORT = 10000;
+    // for (String remotePort:REMOTE_PORTS) {}
+    static final String[] REMOTE_PORTS = {"11108", "11112", "11116", "11120", "11124"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +65,16 @@ public class GroupMessengerActivity extends Activity {
          */
         mEditText = (EditText) findViewById(R.id.editText1);
         findViewById(R.id.button4).setOnClickListener(new OnSendClickListener(mTextView, mEditText));
+
+        TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
+        try {
+            ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
+            Log.d(TAG, "Create a ServerSocket listening on: " + serverSocket.getLocalSocketAddress());
+            new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, serverSocket);
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e(TAG, "Can't create a ServerSocket");
+        }
     }
 
     @Override
@@ -55,4 +83,56 @@ public class GroupMessengerActivity extends Activity {
         getMenuInflater().inflate(R.menu.activity_group_messenger, menu);
         return true;
     }
+
+    private class ServerTask extends AsyncTask<ServerSocket, String, Void> {
+
+        @Override
+        protected Void doInBackground(ServerSocket... sockets) {
+
+            ServerSocket serverSocket = sockets[0];
+            Socket socket = null;
+
+            try {
+                while (true) {
+                    socket = serverSocket.accept();
+                    if (socket != null) {
+                        Log.d(TAG, "Accepted connection from " + socket.getRemoteSocketAddress().toString());
+
+                        OutputStream out = socket.getOutputStream();
+                        InputStream in = socket.getInputStream();
+                        BufferedReader br = new BufferedReader(new InputStreamReader(in));
+                        String msg = br.readLine();
+                        publishProgress(msg);
+
+                        br.close();
+                        in.close();
+                        out.close();
+                        socket.close();
+                        Log.d(TAG, "Closed ServerSocket and IO.");
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.d(TAG, "Server Error.");
+            }
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(String...strings) {
+            String strReceived = strings[0].trim();
+            Log.d(TAG, "Received MSG: " + strReceived);
+            mTextView.append(strReceived + "\n");
+
+            // Saved msg to Database
+            // ...
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            Log.d(TAG, "ServerTask should not break the loop.");
+        }
+    }
+
+
 }
