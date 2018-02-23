@@ -27,6 +27,8 @@ import android.util.Log;
  */
 public class GroupMessengerProvider extends ContentProvider {
 
+    static final String TAG = GroupMessengerProvider.class.getSimpleName();
+
     private SQLiteHelper dbHelper;
     private SQLiteDatabase db;
 
@@ -58,7 +60,7 @@ public class GroupMessengerProvider extends ContentProvider {
         db = dbHelper.getWritableDatabase();
         long newRowId = db.insertWithOnConflict(dbHelper.TABLE_NAME,
                 dbHelper.getNullColumnHack(), values, db.CONFLICT_IGNORE);
-
+        Log.d(TAG, "New row ID: " + newRowId);
         Log.v("insert", values.toString());
         return uri;
     }

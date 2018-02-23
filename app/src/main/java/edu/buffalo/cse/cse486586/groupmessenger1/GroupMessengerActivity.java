@@ -8,17 +8,18 @@ import android.telephony.TelephonyManager;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.Menu;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 /**
  * GroupMessengerActivity is the main Activity for the assignment.
@@ -33,11 +34,12 @@ public class GroupMessengerActivity extends Activity {
     // Related to UI
     public TextView mTextView;
     public EditText mEditText;
+    public Button pTestBtn;
+    public Button sendBtn;
+
 
     // Related to TCP
     static final int SERVER_PORT = 10000;
-    // for (String remotePort:REMOTE_PORTS) {}
-    static final String[] REMOTE_PORTS = {"11108", "11112", "11116", "11120", "11124"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,8 +57,8 @@ public class GroupMessengerActivity extends Activity {
          * Registers OnPTestClickListener for "button1" in the layout, which is the "PTest" button.
          * OnPTestClickListener demonstrates how to access a ContentProvider.
          */
-        findViewById(R.id.button1).setOnClickListener(
-                new OnPTestClickListener(mTextView, getContentResolver()));
+        pTestBtn = (Button) findViewById(R.id.button1);
+        pTestBtn.setOnClickListener(new OnPTestClickListener(mTextView, getContentResolver()));
         
         /*
          * TODO: You need to register and implement an OnClickListener for the "Send" button.
@@ -64,10 +66,11 @@ public class GroupMessengerActivity extends Activity {
          * and send it to other AVDs.
          */
         mEditText = (EditText) findViewById(R.id.editText1);
-        findViewById(R.id.button4).setOnClickListener(new OnSendClickListener(mTextView, mEditText));
+        sendBtn = (Button) findViewById(R.id.button4);
+        sendBtn.setOnClickListener(new OnSendClickListener(mEditText));
 
-        TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         try {
+            TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
             ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
             Log.d(TAG, "Create a ServerSocket listening on: " + serverSocket.getLocalSocketAddress());
             new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, serverSocket);
@@ -102,24 +105,28 @@ public class GroupMessengerActivity extends Activity {
                         InputStream in = socket.getInputStream();
                         BufferedReader br = new BufferedReader(new InputStreamReader(in));
                         String msg = br.readLine();
+
                         publishProgress(msg);
 
                         br.close();
                         in.close();
                         out.close();
                         socket.close();
-                        Log.d(TAG, "Closed ServerSocket and IO.");
+                        Log.d(TAG, "ServerSocket and IO Closed.");
                     }
                 }
+            } catch (UnknownHostException e) {
+                Log.e(TAG, "ServerTask UnknownHostException");
+            } catch (IOException e) {
+                Log.e(TAG, "ServerTask IOException");
             } catch (Exception e) {
-                e.printStackTrace();
-                Log.d(TAG, "Server Error.");
+                Log.d(TAG, "ServerTask Exception.");
             }
             return null;
         }
 
         @Override
-        protected void onProgressUpdate(String...strings) {
+        protected void onProgressUpdate(String... strings) {
             String strReceived = strings[0].trim();
             Log.d(TAG, "Received MSG: " + strReceived);
             mTextView.append(strReceived + "\n");
@@ -133,6 +140,4 @@ public class GroupMessengerActivity extends Activity {
             Log.d(TAG, "ServerTask should not break the loop.");
         }
     }
-
-
 }

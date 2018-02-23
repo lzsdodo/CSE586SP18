@@ -23,8 +23,10 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     // SQL statement
     // Table's name and the columns in the table
     private static final String SQL_CREATE_ENTRIES =
-            "CREATE TABLE " + TABLE_NAME + " ( " + COLUMN_NAME_ID + " INTEGER PRIMARY KEY, " +
-                    COLUMN_NAME_KEY + " STRING, " + COLUMN_NAME_VALUE + " STRING" + " );";
+            "CREATE TABLE " + TABLE_NAME + " ( " +
+                    COLUMN_NAME_ID + " INTEGER PRIMARY KEY, " +
+                    COLUMN_NAME_KEY + " STRING NOT NULL UNIQUE, " +
+                    COLUMN_NAME_VALUE + " STRING" + " );";
 
     private static final String SQL_ALTER_ENTRIES = "ALTER TABLE " + TABLE_NAME +
             " ADD COLUMN " + COLUMN_NAME_VALUE + " STRING;";
@@ -42,9 +44,8 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (oldVersion < DB_VERSION) {
-            db.execSQL(SQL_ALTER_ENTRIES);
-        }
+        if (oldVersion < DB_VERSION) {db.execSQL(SQL_ALTER_ENTRIES);}
+
         // A cache database which its upgrade policy is to simply to discard the data and start over
         // db.execSQL(SQL_DELETE_ENTRIES);
         // onCreate(db);
