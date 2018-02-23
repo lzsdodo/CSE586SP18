@@ -1,8 +1,10 @@
 package edu.buffalo.cse.cse486586.groupmessenger1;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
 
 /**
  * Created by Zishan Liang on 2/20/18.
@@ -31,7 +33,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     private static final String SQL_ALTER_ENTRIES = "ALTER TABLE " + TABLE_NAME +
             " ADD COLUMN " + COLUMN_NAME_VALUE + " STRING;";
 
-    // private static final String SQL_DELETE_ENTRIES = "DROP TABLE IF EXISTS " + TABLE_NAME;
+    // private static final String SQL_DROP_TABLE = "DROP TABLE IF EXISTS " + TABLE_NAME + ";";
 
     public SQLiteHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -45,20 +47,29 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion < DB_VERSION) {db.execSQL(SQL_ALTER_ENTRIES);}
-
         // A cache database which its upgrade policy is to simply to discard the data and start over
-        // db.execSQL(SQL_DELETE_ENTRIES);
+        // db.execSQL(SQL_DROP_TABLE);
         // onCreate(db);
-    }
-
-    @Override
-    public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        onUpgrade(db, oldVersion, newVersion);
     }
 
     public String getNullColumnHack() {
         return COLUMN_NAME_ID;
     }
 
+    /*
+    public Void readAllFromTable() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String[] columns = new String[] {COLUMN_NAME_ID, COLUMN_NAME_KEY, COLUMN_NAME_VALUE};
+        Cursor c = db.query(TABLE_NAME, columns, null, null,
+                null, null, null, null);
+        c.moveToFirst();
+        while (!c.isLast()) {
+            Log.v("SQLiteHelper", c.getString(0) + "\t" +
+                    c.getString(1) + "\t" + c.getString(2));
+            c.moveToNext();
+        }
+        return null;
+    }
+    */
 }
 

@@ -15,41 +15,42 @@ public class ClientTask extends AsyncTask<String, Void, Void> {
 
     static final String TAG = ClientTask.class.getSimpleName();
 
+    private final String REMOTE_ADDR = "10.0.2.2";
     // for (String remotePort:REMOTE_PORTS) {}
-    static final String[] REMOTE_PORTS = {"11108", "11112", "11116", "11120", "11124"};
+    private final String[] REMOTE_PORTS = {"11108", "11112", "11116", "11120", "11124"};
 
     @Override
     protected Void doInBackground(String... params) {
-        String remoteAddr = params[0];
-        String remotePort = params[1];
-        String msgToSend = params[2];
+        String msgToSend = params[0];
 
-        try {
-            Socket socket = new Socket(remoteAddr, Integer.parseInt(remotePort));
+        for (String remotePort:REMOTE_PORTS) {
+            try {
+                Socket socket = new Socket(REMOTE_ADDR, Integer.parseInt(remotePort));
 
-            if (socket.isConnected()) {
-                socket.setSendBufferSize(128);
-                socket.setKeepAlive(true);
-                socket.setSoTimeout(300);
-                Log.d(TAG, "Connected Server: " + socket.getRemoteSocketAddress());
+                if (socket.isConnected()) {
+                    //                socket.setSendBufferSize(128);
+                    //                socket.setKeepAlive(true);
+                    //                socket.setSoTimeout(300);
+                    Log.d(TAG, "Connected Server: " + socket.getRemoteSocketAddress());
 
-                InputStream in = socket.getInputStream();
-                OutputStream out = socket.getOutputStream();
+                    InputStream in = socket.getInputStream();
+                    OutputStream out = socket.getOutputStream();
 
-                out.write(msgToSend.getBytes());
-                Log.d(TAG, "MSG \"" + msgToSend + "\" Sent.");
+                    out.write(msgToSend.getBytes());
+                    Log.d(TAG, "MSG \"" + msgToSend + "\" Sent.");
 
-                out.close();
-                in.close();
-                socket.close();
-                Log.d(TAG, "ClientSocket Closed.");
+                    out.close();
+                    in.close();
+                    socket.close();
+                    Log.d(TAG, "ClientSocket Closed.");
+                }
+            } catch (UnknownHostException e) {
+                Log.e(TAG, "ClientTask UnknownHostException");
+            } catch (IOException e) {
+                Log.e(TAG, "ClientTask IOException");
+            } catch (Exception e) {
+                Log.e(TAG, "ClientTask Exception");
             }
-        } catch (UnknownHostException e) {
-            Log.e(TAG, "ClientTask UnknownHostException");
-        } catch (IOException e) {
-            Log.e(TAG, "ClientTask IOException");
-        } catch (Exception e) {
-            Log.e(TAG, "ClientTask Exception");
         }
         return null;
     }

@@ -1,16 +1,16 @@
 package edu.buffalo.cse.cse486586.groupmessenger1;
 
 import android.app.Activity;
-import android.content.Context;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.telephony.TelephonyManager;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.Menu;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.net.Uri;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -31,15 +31,11 @@ public class GroupMessengerActivity extends Activity {
 
     static final String TAG = GroupMessengerActivity.class.getSimpleName();
 
-    // Related to UI
+    // UI
     public TextView mTextView;
     public EditText mEditText;
-    public Button pTestBtn;
-    public Button sendBtn;
 
-
-    // Related to TCP
-    static final int SERVER_PORT = 10000;
+    private final int SERVER_PORT = 10000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,8 +53,7 @@ public class GroupMessengerActivity extends Activity {
          * Registers OnPTestClickListener for "button1" in the layout, which is the "PTest" button.
          * OnPTestClickListener demonstrates how to access a ContentProvider.
          */
-        pTestBtn = (Button) findViewById(R.id.button1);
-        pTestBtn.setOnClickListener(new OnPTestClickListener(mTextView, getContentResolver()));
+        findViewById(R.id.button1).setOnClickListener(new OnPTestClickListener(mTextView, getContentResolver()));
         
         /*
          * TODO: You need to register and implement an OnClickListener for the "Send" button.
@@ -66,11 +61,9 @@ public class GroupMessengerActivity extends Activity {
          * and send it to other AVDs.
          */
         mEditText = (EditText) findViewById(R.id.editText1);
-        sendBtn = (Button) findViewById(R.id.button4);
-        sendBtn.setOnClickListener(new OnSendClickListener(mEditText));
+        findViewById(R.id.button4).setOnClickListener(new OnSendClickListener(mEditText));
 
         try {
-            TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
             ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
             Log.d(TAG, "Create a ServerSocket listening on: " + serverSocket.getLocalSocketAddress());
             new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, serverSocket);
@@ -78,6 +71,7 @@ public class GroupMessengerActivity extends Activity {
             e.printStackTrace();
             Log.e(TAG, "Can't create a ServerSocket");
         }
+
     }
 
     @Override
@@ -88,6 +82,12 @@ public class GroupMessengerActivity extends Activity {
     }
 
     private class ServerTask extends AsyncTask<ServerSocket, String, Void> {
+
+        // Database
+        private Uri sUri = new Uri.Builder().scheme("content").authority("edu.buffalo.cse.cse486586.groupmessenger1.provider").build();asd
+        private ContentResolver sCR = getContentResolver();
+        private ContentValues sCV = new ContentValues();
+        private int msgReceivedNum = 0;
 
         @Override
         protected Void doInBackground(ServerSocket... sockets) {
@@ -132,7 +132,12 @@ public class GroupMessengerActivity extends Activity {
             mTextView.append(strReceived + "\n");
 
             // Saved msg to Database
-            // ...
+            sCV.put("key", Integer.toString(msgReceivedNum));
+            sCV.put("value", strReceived);
+            sCR.insert(sUri, sCV);
+            msgReceivedNum = msgReceivedNum + 1;
+            sCV.clear();
+            Log.d(TAG, "Saved MSG " + strReceived + " to DB.");
         }
 
         @Override

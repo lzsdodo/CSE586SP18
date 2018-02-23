@@ -60,8 +60,7 @@ public class GroupMessengerProvider extends ContentProvider {
         db = dbHelper.getWritableDatabase();
         long newRowId = db.insertWithOnConflict(dbHelper.TABLE_NAME,
                 dbHelper.getNullColumnHack(), values, db.CONFLICT_IGNORE);
-        Log.d(TAG, "New row ID: " + newRowId);
-        Log.v("insert", values.toString());
+        Log.v("insert", "row=" + newRowId + "\t" + values.toString());
         return uri;
     }
 
@@ -69,6 +68,8 @@ public class GroupMessengerProvider extends ContentProvider {
     public boolean onCreate() {
         // If you need to perform any one-time initialization task, please do it here.
         dbHelper = new SQLiteHelper(getContext());
+        // Clean Table
+        dbHelper.getWritableDatabase().execSQL("DELETE FROM " + dbHelper.TABLE_NAME + ";");
         return true;
     }
 
