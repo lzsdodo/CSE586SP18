@@ -84,7 +84,7 @@ public class GroupMessengerActivity extends Activity {
     private class ServerTask extends AsyncTask<ServerSocket, String, Void> {
 
         // Database
-        private Uri sUri = new Uri.Builder().scheme("content").authority("edu.buffalo.cse.cse486586.groupmessenger1.provider").build();asd
+        private Uri sUri = new Uri.Builder().scheme("content").authority("edu.buffalo.cse.cse486586.groupmessenger1.provider").build();
         private ContentResolver sCR = getContentResolver();
         private ContentValues sCV = new ContentValues();
         private int msgReceivedNum = 0;
