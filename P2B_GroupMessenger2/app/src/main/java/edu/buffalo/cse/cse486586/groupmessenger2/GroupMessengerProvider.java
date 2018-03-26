@@ -3,6 +3,7 @@ package edu.buffalo.cse.cse486586.groupmessenger2;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.util.Log;
 
@@ -24,7 +25,22 @@ import android.util.Log;
  * @author stevko
  *
  */
+
+/*
+ * Reference:
+ * - Android Dev Docs
+ *      ContentResolver: https://developer.android.com/reference/android/content/ContentResolver.html
+ *      ContentValues: https://developer.android.com/reference/android/content/ContentValues.html
+ *      Cursor: https://developer.android.com/reference/android/database/Cursor.html
+ *      SQLiteOpenHelper: https://developer.android.com/reference/android/database/sqlite/SQLiteOpenHelper.html
+ */
+
 public class GroupMessengerProvider extends ContentProvider {
+
+    static final String TAG = GroupMessengerProvider.class.getSimpleName();
+
+    private SQLiteHelper dbHelper;
+    private SQLiteDatabase db;
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
@@ -40,24 +56,19 @@ public class GroupMessengerProvider extends ContentProvider {
 
     @Override
     public Uri insert(Uri uri, ContentValues values) {
-        /*
-         * TODO: You need to implement this method. Note that values will have two columns (a key
-         * column and a value column) and one row that contains the actual (key, value) pair to be
-         * inserted.
-         * 
-         * For actual storage, you can use any option. If you know how to use SQL, then you can use
-         * SQLite. But this is not a requirement. You can use other storage options, such as the
-         * internal storage option that we used in PA1. If you want to use that option, please
-         * take a look at the code for PA1.
-         */
-        Log.v("insert", values.toString());
+        db = dbHelper.getWritableDatabase();
+        long newRowId = db.insertWithOnConflict(dbHelper.TABLE_NAME,
+                dbHelper.getNullColumnHack(), values, db.CONFLICT_IGNORE);
+        Log.v("insert", "row=" + newRowId + "\t" + values.toString());
         return uri;
     }
 
     @Override
     public boolean onCreate() {
-        // If you need to perform any one-time initialization task, please do it here.
-        return false;
+        dbHelper = new SQLiteHelper(getContext());
+        // Clean Table
+        dbHelper.getWritableDatabase().execSQL("DELETE FROM " + dbHelper.TABLE_NAME + ";");
+        return true;
     }
 
     @Override
@@ -69,18 +80,17 @@ public class GroupMessengerProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
                         String sortOrder) {
-        /*
-         * TODO: You need to implement this method. Note that you need to return a Cursor object
-         * with the right format. If the formatting is not correct, then it is not going to work.
-         *
-         * If you use SQLite, whatever is returned from SQLite is a Cursor object. However, you
-         * still need to be careful because the formatting might still be incorrect.
-         *
-         * If you use a file storage option, then it is your job to build a Cursor * object. I
-         * recommend building a MatrixCursor described at:
-         * http://developer.android.com/reference/android/database/MatrixCursor.html
-         */
+        db = dbHelper.getReadableDatabase();
+
+        String[] columns = new String[] {dbHelper.COLUMN_NAME_KEY, dbHelper.COLUMN_NAME_VALUE};
+        String newSelecttion = dbHelper.COLUMN_NAME_KEY + "=?";
+        String[] keyToRead = new String[] {selection};
+
+        Cursor c = db.query(dbHelper.TABLE_NAME, columns, newSelecttion, keyToRead,
+                null, null, null, "1");
+        c.moveToFirst();
+
         Log.v("query", selection);
-        return null;
+        return c;
     }
 }

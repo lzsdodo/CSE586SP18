@@ -30,6 +30,7 @@ import android.widget.TextView;
 public class OnPTestClickListener implements OnClickListener {
 
     private static final String TAG = OnPTestClickListener.class.getName();
+
     private static final int TEST_CNT = 50;
     private static final String KEY_FIELD = "key";
     private static final String VALUE_FIELD = "value";
