@@ -1,19 +1,44 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
 
-public class Node {
+/*
+ * Reference:
+ * - Android Dev Docs:
+ *
+ * - Article:
+ *      Simply Singleton: https://www.javaworld.com/article/2073352/core-java/simply-singleton.html
+ */
+public class Chord {
 
-    String nodeID = GV.NODE_IDS.get(GV.MY_PORT);
+    private String myNodeID = "";
+    private String predNodeID = "";
+    private String succNodeID = "";
+    private Boolean isSingleNode = true;
 
-    private void createNode() {}
+    private static final Chord node = new Chord();
 
-    private void joinNode() {}
+    private Chord() {
+        this.createNode();
+    }
+
+    private void createNode() {
+        this.myNodeID = GV.NODE_ID_MAP.get(GV.MY_PORT);
+        this.predNodeID = this.myNodeID;
+        this.succNodeID = this.myNodeID;
+        this.isSingleNode = true;
+    }
+
+    public static Chord getNode() {
+        return node;
+    }
+
+    private void join() {}
 
     private void notifyNode() {}
 
-    private void stabilizeNode() {}
-
     private void fixFingers() {}
+
+    private void stabilize() {}
 
     private void lookup() {}
 
