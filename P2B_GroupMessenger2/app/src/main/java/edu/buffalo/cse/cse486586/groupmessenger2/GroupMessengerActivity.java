@@ -156,19 +156,17 @@ public class GroupMessengerActivity extends Activity {
         @Override
         protected void onProgressUpdate(String... strings) {
             String recvString = strings[0].trim();
+            Log.d("SERVER RECV", recvString);
 
-            Log.d(TAG, "RECV MSG: " + recvString);
-            // Parse string to message
-            Message msg = new Message();
-            msg.parseMsg(recvString);
+            // Parse string to MSG
+            Message msg = Message.parseMsg(recvString);
 
-            // Print it to UI
+            // Print on UI
             String printStr = msg.getMsgID() + "-" + msg.getMsgType() + ": "
                     + msg.getMsgContent() + "\n";
             mTextView.append(printStr);
-            Log.d("UI", printStr);
 
-            // Put it to the msg receive queue
+            // Put it into msgRecvQueue
             GV.msgRecvQueue.offer(msg);
         }
 

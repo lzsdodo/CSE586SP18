@@ -43,17 +43,19 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
     @Override
     protected Void doInBackground(String... params) {
         String msgToSend = params[0];
-        GV.MsgTargetTypeEnum msgTarget = GV.MsgTargetTypeEnum.valueOf(params[1]);
+        Message.TARGET_TYPE msgTarget = Message.TARGET_TYPE.valueOf(params[1]);
         int targetPID = Integer.parseInt(params[2]);
 
         ArrayList<String> remotePorts = new ArrayList<String>();
         switch (msgTarget) {
             case GROUP:
                 Log.e("SEND GROUP", msgToSend);
-                remotePorts = GV.REMOTE_PORTS; break;
+                remotePorts = GV.REMOTE_PORTS;
+                break;
             case PID:
                 Log.e("SEND PID", msgToSend);
-                remotePorts.add(GV.REMOTE_PORTS.get(targetPID)); break;
+                remotePorts.add(GV.REMOTE_PORTS.get(targetPID));
+                break;
             default: // NONE
                 Log.e("CLIENT MSG TYPE ERROR", msgToSend);
                 break;

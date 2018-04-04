@@ -32,11 +32,11 @@ public class OnSendClickListener implements OnClickListener{
             this.editText.setText("");
             Log.d(TAG, "Sending content with heartbeat: " + editContent);
 
-            Message initMsg = new Message(editContent, GV.MsgTypeEnum.INIT, GV.MsgTargetTypeEnum.GROUP);
-            GV.msgSendQueue.offer(initMsg);
+            Message initMsg = new Message(editContent, Message.TYPE.INIT, Message.TARGET_TYPE.GROUP);
+            GV.msgWaitList.add(initMsg.getMsgID());
 
-            Message heartSignal = new Message(GV.MsgTypeEnum.HEART, GV.GROUP_PID);
-            GV.msgSendQueue.offer(heartSignal);
+            GV.msgSendQueue.offer(initMsg);
+            GV.msgSendQueue.offer(new Message(Message.TYPE.HEART, GV.GROUP_PID));
 
         } catch (Exception e) {
             e.printStackTrace();

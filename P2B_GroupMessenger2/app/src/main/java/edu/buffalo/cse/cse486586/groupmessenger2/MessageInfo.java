@@ -11,12 +11,12 @@ package edu.buffalo.cse.cse486586.groupmessenger2;
 public class MessageInfo implements Comparable<MessageInfo>{
 
     // Structure: <msg, msgID, senderPID, agrProir, propPID, dilverable>
-    private Integer senderID;
-    private Integer msgID;
+    private int senderID;
+    private int msgID;
     private String msgContent;
-    private Integer propPID;
-    private Integer propSeqPrior;
-    private Integer isDeliverable;
+    private int propPID;
+    private int propSeqPrior;
+    private int isDeliverable; // 1: diliverable; 0: undeliverable
 
     public MessageInfo (Message message) {
         this.senderID = message.getSenderPID();
@@ -24,20 +24,18 @@ public class MessageInfo implements Comparable<MessageInfo>{
         this.msgContent = message.getMsgContent();
         this.propPID = message.getPropPID();
         this.propSeqPrior = message.getPropSeqPrior();
-        this.isDeliverable = message.getIsDeliverable();
+        this.isDeliverable = 0;
     }
 
     // setter and getter
-    public Integer getPropSeqPrior () {return propSeqPrior;}
-    public void setPropSeqPrior (Integer propSeqPrior) {this.propSeqPrior = propSeqPrior;}
-    public void setPropPID (Integer propPID) {this.propPID = propPID;}
-    public void setDiliverable (Integer diliverable) {this.isDeliverable = diliverable;}
-
-    public Integer getMsgID () {return this.msgID;}
+    public int getMsgID () {return this.msgID;}
     public String getMsgContent () {return this.msgContent;}
-    public Integer getSenderID () {return this.senderID;}
-    public Integer getPropPID () {return this.propPID;}
-    public Integer getIsDeliverable () {return this.isDeliverable;}
+    public int getPropSeqPrior () {return propSeqPrior;}
+    public int getDeliverable () {return this.isDeliverable;}
+
+    public void setPropPID (Integer propPID) {this.propPID = propPID;}
+    public void setPropSeqPrior (Integer propSeqPrior) {this.propSeqPrior = propSeqPrior;}
+    public void setDiliverable (Integer diliverable) {this.isDeliverable = diliverable;}
 
     @Override
     public String toString () {
@@ -53,9 +51,9 @@ public class MessageInfo implements Comparable<MessageInfo>{
         if(this.propSeqPrior < another.getPropSeqPrior()) {
             return -1;
         } else if(this.propSeqPrior == another.getPropSeqPrior()) {
-            if(this.isDeliverable < another.getIsDeliverable()) {
+            if(this.isDeliverable < another.getDeliverable()) {
                 return -1;
-            } else if (this.isDeliverable == another.getIsDeliverable()) {
+            } else if (this.isDeliverable == another.getDeliverable()) {
                 if (this.msgID < another.getMsgID()) {
                     return  -1;
                 }
@@ -63,6 +61,5 @@ public class MessageInfo implements Comparable<MessageInfo>{
         }
         return 0;
     }
-
 
 }

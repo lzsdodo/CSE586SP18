@@ -4,9 +4,6 @@ import android.util.Log;
 
 public class Utils {
 
-    // Sequence Vector
-
-
     // Connection
     static void recordHeartbeat(Message msg) {
         int times;
