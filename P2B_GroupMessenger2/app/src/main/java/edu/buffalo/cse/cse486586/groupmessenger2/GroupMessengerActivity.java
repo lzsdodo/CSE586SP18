@@ -162,10 +162,12 @@ public class GroupMessengerActivity extends Activity {
             Message msg = Message.parseMsg(recvString);
 
             // Print on UI
-            String printStr = msg.getMsgID() + "-" + msg.getMsgType() + ": "
-                    + msg.getMsgContent() + "\n";
-            mTextView.append(printStr);
-
+            Message.TYPE msgType = msg.getMsgType();
+            if (msgType != Message.TYPE.HEART && msgType != Message.TYPE.ALIVE) {
+                String printStr = msg.getMsgID() + "-" + msgType + ": "
+                        + msg.getMsgContent() + "\n";
+                mTextView.append(printStr);
+            }
             // Put it into msgRecvQueue
             GV.msgRecvQueue.offer(msg);
         }

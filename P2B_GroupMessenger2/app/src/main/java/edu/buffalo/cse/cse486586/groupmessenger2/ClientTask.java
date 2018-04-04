@@ -49,11 +49,11 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
         ArrayList<String> remotePorts = new ArrayList<String>();
         switch (msgTarget) {
             case GROUP:
-                Log.e("SEND GROUP", msgToSend);
+                // Log.e("SEND GROUP", msgToSend);
                 remotePorts = GV.REMOTE_PORTS;
                 break;
             case PID:
-                Log.e("SEND PID", msgToSend);
+                // Log.e("SEND PID", msgToSend);
                 remotePorts.add(GV.REMOTE_PORTS.get(targetPID));
                 break;
             default: // NONE
@@ -63,7 +63,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
 
         for (String remotePort: remotePorts) {
             targetPID = GV.REMOTE_PORTS.indexOf(remotePort);
-            Log.d(TAG, "Sending to device: " + targetPID + "::" + remotePort);
+            // Log.d(TAG, "Sending to device: " + targetPID + "::" + remotePort);
 
             boolean connFlag = false;
 
@@ -75,14 +75,14 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
                 // socket.setOOBInline(true); // For sendUrgentData
 
                 if (socket.isConnected()) {
-                    Log.d(TAG, "CONNECTED SERVER: " + socket.getRemoteSocketAddress());
+                    // Log.d(TAG, "CONNECTED SERVER: " + socket.getRemoteSocketAddress());
                     socket.setSendBufferSize(8192); // Send Buff Default 8192
                     socket.setSoTimeout(500); // Response Timeout
 
                     InputStream in = socket.getInputStream();
                     OutputStream out = socket.getOutputStream();
 
-                    Log.d(TAG, "MSG: " + msgToSend + " SENT.");
+                    // Log.d(TAG, "MSG: " + msgToSend + " SENT.");
                     out.write(msgToSend.getBytes());
                     out.flush();
 
@@ -92,7 +92,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
                         socket.close();
                     }
                     connFlag = true;
-                    Log.d(TAG, "CLIENTSOCKET CLOSED.");
+                    // Log.d(TAG, "CLIENTSOCKET CLOSED.");
                 }
             }
             catch (SocketTimeoutException e) {
@@ -123,7 +123,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
                 // e.printStackTrace();
             } finally {
                 if (!connFlag) {
-                    Log.e(TAG, "Disconnected device: " + targetPID + "-" + remotePort);
+                    Log.e(TAG, "DISCONN DEVICE: " + targetPID + "-" + remotePort);
                     Utils.recordDisconnTime(targetPID);
                     Utils.updateDevStatus();
                 }

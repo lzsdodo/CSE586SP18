@@ -9,8 +9,10 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.Collections;
 
+
 /*
  * Reference:
+ *  Dev Docs:
  *  ISIS Algorithm form Textbook and slides.
  */
 
@@ -22,25 +24,81 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
     private ContentValues sCV = new ContentValues();
     private ContentResolver sCR;
 
+    private int msgNum = 0;
+    private int msgTONum = 0;
+
     @Override
     protected Void doInBackground(ContentResolver... cr) {
         this.sCR = cr[0];
         Log.d(TAG, "START QueueTask");
 
+        // Init
+        this.msgNum = 0;
+        this.msgTONum = 0;
+
+        GV.nowMs = System.currentTimeMillis();
+        GV.lastMs = GV.nowMs;
+        while (GV.nowMs < GV.lastMs + 2500 - GV.MY_PID * 500) {
+            GV.nowMs = System.currentTimeMillis();
+        }
+        GV.nowMs = System.currentTimeMillis();
+        GV.lastMs = GV.nowMs;
+
         while (true) {
             try {
                 // 1. Handle Send Message
                 if(!GV.isEmptyMSQ) {
-                    Log.d("SEND QUEUE", "SIZE: " + GV.msgRecvQueue.size());
+                    // Log.d("SEND QUEUE", "SIZE: " + GV.msgRecvQueue.size());
                     Message msg = GV.msgSendQueue.poll(); // item removed
-                    this.sendControl(msg); // control flow
-                 }
+                    switch (msg.getMsgType()) {
+                        case INIT:
+                            // Log.e("SEND INIT", msg.toString() + " TO GROUP");
+                            this.sendMsgToGroup(msg.toString()); break;
+                        case REPLY:
+                            // Log.e("SEND REPLY", msg.toString() + " TO " + msg.getFromPID());
+                            this.sendMsgToPID(msg.toString(), msg.getFromPID()); break;
+                        case DELIVER:
+                            // Log.e("SEND DELIVER", msg.toString() + " TO GROUP");
+                            this.sendMsgToGroup(msg.toString()); break;
+                        case HEART:
+                            // Log.e("SEND HEART", "To " + msg.getMsgTargetType().name() + " " + msg.getFromPID());
+                            this.sendHeartSignal(msg);
+                            GV.nowMs = System.currentTimeMillis();
+                            GV.lastMs = System.currentTimeMillis();
+                            Log.e("TIME", "Send a heart beat signal when ms=" + GV.lastMs);
+                            break;
+                        case ALIVE:
+                            // Log.e("SEND ALIVE", " To PID " + msg.getFromPID());
+                            this.sendMsgToPID(msg.toString(), msg.getFromPID()); break;
+                        default:
+                            Log.e("MSG SEND TYPE ERROR", msg.toString()); break;
+                    }
+                }
 
                 // 2. Handle Receive Message
                 if(!GV.isEmptyMRQ) {
-                    Log.d("RECV QUEUE", "SIZE: " + GV.msgRecvQueue.size());
                     Message msg = GV.msgRecvQueue.poll(); // item removed
-                    this.recvControl(msg); // control flow
+                    // Log.d("RECV QUEUE", "SIZE: " + GV.msgRecvQueue.size());
+                    int fromPID = msg.getSenderPID();
+                    switch (msg.getMsgType()) {
+                        case INIT:
+                            // Log.e("RECV INIT", msg.toString() + " FROM " + msg.getFromPID());
+                            this.handleRecvInit(msg, fromPID); break;
+                        case REPLY:
+                            // Log.e("RECV REPLY", msg.toString() + " FROM " + msg.getFromPID());
+                            this.handleRecvReply(msg, fromPID); break;
+                        case DELIVER:
+                            // Log.e("RECV DELIVER", msg.toString() + " FROM " + msg.getFromPID());
+                            this.handleRecvDeliver(msg); break;
+                        case HEART:
+                            // Log.e("RECV HEART", "FROM " + msg.getFromPID());
+                            this.handleRecvHeart(fromPID); break;
+                        case ALIVE:
+                            // Log.e("RECV ALIVE", "FROM " + msg.getFromPID());
+                            this.handleRecvAlive(fromPID); break;
+                        default:
+                            Log.e("MSG RECV TYPE ERROR", msg.toString()); break;
+                    }
                 }
 
                 // 3. Update Flag
@@ -52,15 +110,42 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 
                     // Deal with waiting msg when not empty
                     if(!GV.msgWaitList.isEmpty()) {
-                        this.handleWaitingMsg();
+                        int waitMid = GV.msgWaitList.get(0);
+                        ArrayList<ArrayList<Integer>> waitProirList = GV.msgWaitProirMap.get(waitMid);
+                        if (waitProirList != null) {
+                            if (waitProirList.size() >= GV.devConnNum) {
+                                // Collect all reply msg
+                                // 1. Cal max agree proir
+                                ArrayList<Integer> maxPropProir = this.getMaxPropPrior(waitProirList);
+                                // 2. Remove
+                                GV.msgWaitList.remove(0);
+                                GV.msgWaitProirMap.remove(waitMid);
+                                // 3. Build Deliver Msg
+                                GV.msgSendQueue.offer(makeDeliverMsg(waitMid, maxPropProir.get(0), maxPropProir.get(1)));
+                            } else {
+                                GV.nowMs = System.currentTimeMillis();
+                                if(GV.nowMs > GV.lastMs + GV.timeDelta) {
+                                    GV.msgSendQueue.offer(new Message(Message.TYPE.HEART, GV.GROUP_PID));
+                                    GV.nowMs = System.currentTimeMillis();
+                                    GV.lastMs = GV.nowMs;
+                                }
+                            }
+                        }
                     }
 
                     // Store msg to DB
-                    if (GV.msgTONum == GV.msgNum) {
-                        if (GV.TONum < GV.msgTONum) {
+                    // A lost device send init msg and not gonna to send deliver msg
+                    if ((this.msgTONum > 15) && (this.msgTONum >= this.msgNum + GV.devConnNum - 5)) {
+                        if (GV.msgTOIndex < this.msgTONum) {
                             Collections.sort(GV.msgTOList);
-                            this.storeMsg(GV.TONum);
-                            GV.TONum += 1;
+                            // Save to database
+                            MessageInfo msgInfo = GV.msgTOList.get(GV.msgTOIndex);
+                            this.sCV.put("key", Integer.toString(GV.msgTOIndex));
+                            this.sCV.put("value", msgInfo.getMsgContent());
+                            this.sCR.insert(this.sUri, this.sCV);
+                            this.sCV.clear();
+                            Log.e("DB", "SAVED " + GV.msgTOIndex + "\t" + msgInfo.getMsgContent());
+                            GV.msgTOIndex += 1;
                         }
                     }
 
@@ -68,53 +153,6 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-    }
-
-    // 0. Control function
-    private void sendControl(Message msg) {
-        msg.setSenderPID(GV.MY_PID);
-        switch (msg.getMsgType()) {
-            case INIT:
-                Log.e("SEND INIT", msg.toString() + " TO GROUP");
-                this.sendMsgToGroup(msg.toString()); break;
-            case REPLY:
-                Log.e("SEND REPLY", msg.toString() + " TO " + msg.getFromPID());
-                this.sendMsgToPID(msg.toString(), msg.getFromPID()); break;
-            case DELIVER:
-                Log.e("SEND DELIVER", msg.toString() + " TO GROUP");
-                this.sendMsgToGroup(msg.toString()); break;
-            case HEART:
-                Log.e("SEND HEART", "To " + msg.getMsgTargetType().name() + " " + msg.getFromPID());
-                this.sendHeartSignal(msg); break;
-            case ALIVE:
-                Log.e("SEND ALIVE", " To PID " + msg.getFromPID());
-                this.sendMsgToPID(msg.toString(), msg.getFromPID()); break;
-            default:
-                Log.e("MSG SEND TYPE ERROR", msg.toString()); break;
-        }
-    }
-
-    private void recvControl(Message msg) {
-        int fromPID = msg.getSenderPID();
-        switch (msg.getMsgType()) {
-            case INIT:
-                Log.e("RECV INIT", msg.toString() + " FROM " + msg.getFromPID());
-                this.handleRecvInit(msg, fromPID); break;
-            case REPLY:
-                Log.e("RECV REPLY", msg.toString() + " FROM " + msg.getFromPID());
-                this.handleRecvReply(msg, fromPID); break;
-            case DELIVER:
-                Log.e("RECV DELIVER", msg.toString() + " FROM " + msg.getFromPID());
-                this.handleRecvDeliver(msg); break;
-            case HEART:
-                Log.e("RECV HEART", "FROM " + msg.getFromPID());
-                this.handleRecvHeart(fromPID); break;
-            case ALIVE:
-                Log.e("RECV ALIVE", "FROM " + msg.getFromPID());
-                this.handleRecvAlive(fromPID); break;
-            default:
-                Log.e("MSG RECV TYPE ERROR", msg.toString()); break;
         }
     }
 
@@ -131,26 +169,19 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
     }
 
     private void sendHeartSignal(Message msg) {
-        // Remember the heart singal can be sent to group or pid
-        // send to pid needs the msg.getFromPID();
-        switch (msg.getMsgTargetType()) {
-            case GROUP: this.sendMsgToGroup(msg.toString()); break;
-            case PID: this.sendMsgToPID(msg.toString(), msg.getFromPID()); break;
-            default: break;
-        }
-        Utils.recordHeartbeat(msg);
+        this.sendMsgToGroup(msg.toString());
+        Utils.recordHeartbeat();
         Utils.updateDevStatus();
     }
 
     // 2. Functions of handling receive msg
     private void handleRecvInit(Message msg, int fromPID) {
-        GV.msgNum += 1;
+        this.msgNum += 1;
         int mid = msg.getMsgID();
         // 1. Put it into priorQueue
         GV.msgRecvOrderList.add(mid);
         MessageInfo msgInfo = new MessageInfo(msg);
         GV.msgInfoMap.put(mid, msgInfo);
-
 
         // 2. Calculate propPrior for this msg
         int propPrior = GV.msgInfoMap.size();
@@ -170,13 +201,29 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
         GV.msgSendQueue.offer(replyMsg);
 
         // Log Info here
-        Log.d("MSG ORIGINAL RECV ORDER", GV.msgRecvOrderList.toString());
-        Log.d("MSG INFO SIZE", GV.msgInfoMap.size() + "");
+        Log.d("MSG ORIGINAL ORDER", GV.msgRecvOrderList.size()
+                + " - " + GV.msgRecvOrderList.toString());
     }
 
     private void handleRecvReply(Message msg, int fromPID) {
         int mid = msg.getMsgID();
-        this.collectReplyMsg(mid, msg.getPropSeqPrior(), fromPID);
+        int propPrior = msg.getPropSeqPrior();
+
+        // Collect reply msg
+        ArrayList<Integer> msgPriors = new ArrayList<Integer>();
+        msgPriors.add(fromPID);
+        msgPriors.add(propPrior);
+
+        // {<msgID>, [<pid, propSeqPrior>, ...]>}
+        ArrayList<ArrayList<Integer>> msgWaitProirList = GV.msgWaitProirMap.get(mid);
+        if(msgWaitProirList == null || msgWaitProirList.isEmpty())
+            msgWaitProirList = new ArrayList<ArrayList<Integer>>();
+
+        if (!msgWaitProirList.contains(msgPriors)) {
+            msgWaitProirList.add(msgPriors);
+            GV.msgWaitProirMap.put(mid, msgWaitProirList);
+            Log.e("COLLECT", mid + ": " + msgWaitProirList.toString());
+        }
     }
 
     private void handleRecvDeliver(Message msg) {
@@ -197,8 +244,7 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 
         // 4. Remove waiProirMap and put it into Total Order List and sort
         GV.msgTOList.add(msgInfo);
-        Collections.sort(GV.msgTOList);
-        GV.msgTONum += 1;
+        this.msgTONum += 1;
 
         // Log Info
         ArrayList orderList = new ArrayList();
@@ -217,43 +263,7 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
         Utils.updateDevStatus();
     }
 
-    private void handleWaitingMsg() {
-        int waitMid = GV.msgWaitList.get(0);
-        ArrayList<ArrayList<Integer>> waitProirList = GV.msgWaitProirMap.get(waitMid);
-        if(waitProirList != null) {
-            if (waitProirList.size() >= GV.devConnNum) {
-                // Collect all reply msg
-                // 1. Cal max agree proir
-                ArrayList<Integer> maxPropProir = this.getMaxPropPrior(waitProirList);
-                // 2. Remove
-                GV.msgWaitList.remove(0);
-                GV.msgWaitProirMap.remove(waitMid);
-                // 2. Build Deliver Msg
-                Message dlvrMsg = makeDeliverMsg(waitMid, maxPropProir.get(0), maxPropProir.get(1));
-                GV.msgSendQueue.offer(dlvrMsg);
-            }
-        }
-    }
-
     // 3. Other support functinos
-    private void collectReplyMsg(int mid, int propPrior, int fromPID) {
-        ArrayList<Integer> msgPriors = new ArrayList<Integer>();
-        msgPriors.add(fromPID);
-        msgPriors.add(propPrior);
-
-        // {<msgID>, [<pid, propSeqPrior>, ...]>}
-        ArrayList<ArrayList<Integer>> msgWaitProirList = GV.msgWaitProirMap.get(mid);
-        if(msgWaitProirList == null || msgWaitProirList.isEmpty())
-            msgWaitProirList = new ArrayList<ArrayList<Integer>>();
-
-        if (!msgWaitProirList.contains(msgPriors)) {
-            msgWaitProirList.add(msgPriors);
-            GV.msgWaitProirMap.put(mid, msgWaitProirList);
-            Log.e("COLLECT", mid + ": " + msgWaitProirList.toString());
-        } else
-            Log.e("COLLECT", "RECEIVE SAME REPLY?");
-    }
-
     private ArrayList<Integer> getMaxPropPrior(ArrayList<ArrayList<Integer>> propProirList) {
         // Structure: [<pid, propSeqPrior>, ...]
         ArrayList<Integer> arrMaxPropProir = propProirList.get(0);
@@ -285,16 +295,6 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
         dlvrMsg.setPropPID(propPID);
         dlvrMsg.setPropSeqPrior(propProir);
         return dlvrMsg;
-    }
-
-    private void storeMsg(int TONum) {
-        // Save to database
-        MessageInfo msgInfo = GV.msgTOList.get(TONum);
-        this.sCV.put("key", Integer.toString(TONum));
-        this.sCV.put("value", msgInfo.getMsgContent());
-        this.sCR.insert(this.sUri, this.sCV);
-        this.sCV.clear();
-        Log.e("DB", "Saved " + TONum + "\t" + msgInfo.getMsgContent());
     }
 
 }

@@ -27,7 +27,6 @@ public class OnSendClickListener implements OnClickListener{
     public void onClick(View view) {
 
         try {
-
             String editContent = this.editText.getText().toString().trim();
             this.editText.setText("");
             Log.d(TAG, "Sending content with heartbeat: " + editContent);
@@ -37,7 +36,6 @@ public class OnSendClickListener implements OnClickListener{
 
             GV.msgSendQueue.offer(initMsg);
             GV.msgSendQueue.offer(new Message(Message.TYPE.HEART, GV.GROUP_PID));
-
         } catch (Exception e) {
             e.printStackTrace();
         }

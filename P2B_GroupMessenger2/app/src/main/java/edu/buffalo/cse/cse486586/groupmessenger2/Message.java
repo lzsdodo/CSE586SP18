@@ -51,18 +51,13 @@ public class Message {
 
     // For HEART, ALIVE signal
     public Message(TYPE msgType, int targetPID) {
-        this("...", msgType);
+        this("-", msgType);
         this.fromPID = targetPID;
         switch (msgType) {
             case HEART:
-                this.msgContent = "---";
-                if (targetPID == GV.GROUP_PID)
-                    this.msgTargetType = TARGET_TYPE.GROUP;
-                else
-                    this.msgTargetType = TARGET_TYPE.PID;
+                this.msgTargetType = TARGET_TYPE.GROUP;
                 break;
             case ALIVE:
-                this.msgContent = "^o^";
                 this.msgTargetType = TARGET_TYPE.PID;
                 break;
             default: break;
@@ -85,7 +80,6 @@ public class Message {
     public TARGET_TYPE getMsgTargetType() {return this.msgTargetType;}
 
     public void setMsgID(int msgID) {this.msgID = msgID;}
-    public void setSenderPID(int senderPID) {this.senderPID = senderPID;}
     public void setFromPID(int fromPID) {this.fromPID = fromPID;}
     public void setPropPID(int propPID) {this.propPID = propPID;}
     public void setPropSeqPrior(int propSeqPrior) {this.propSeqPrior = propSeqPrior;}

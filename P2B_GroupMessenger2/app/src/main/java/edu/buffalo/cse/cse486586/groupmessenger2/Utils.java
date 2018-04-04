@@ -5,20 +5,11 @@ import android.util.Log;
 public class Utils {
 
     // Connection
-    static void recordHeartbeat(Message msg) {
+    static void recordHeartbeat() {
         int times;
-        switch (msg.getMsgTargetType()) {
-            case GROUP:
-                for(int i=0; i<5; i++) {
-                    times = GV.devNotAliveTimes.get(i) + 1;
-                    GV.devNotAliveTimes.set(i, times);
-                }
-                break;
-            case PID:
-                times = GV.devNotAliveTimes.get(msg.getFromPID()) + 1;
-                GV.devNotAliveTimes.set(msg.getFromPID(), times);
-                break;
-            default:break;
+        for(int i=0; i<5; i++) {
+            times = GV.devNotAliveTimes.get(i) + 1;
+            GV.devNotAliveTimes.set(i, times);
         }
         Log.d("RECORD HEARTBEAT", "NOT ALIVE TIMES: " + GV.devNotAliveTimes.toString());
     }
