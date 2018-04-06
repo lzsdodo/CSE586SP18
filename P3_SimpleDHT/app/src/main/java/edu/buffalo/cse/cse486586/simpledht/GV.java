@@ -1,15 +1,22 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.net.Uri;
+import android.widget.TextView;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
 
+class GV {
 
-public class GV {
-
-    static final String URI = "content://edu.buffalo.cse.cse486586.simpledht.provider";
+    static final String URI = "edu.buffalo.cse.cse486586.simpledht.provider";
+    static TextView uiTV;
+    static Uri dbUri;
+    static ContentResolver dbCR;
 
     static final int SERVER_PORT = 10000;
     static final String REMOTE_ADDR = "10.0.2.2";
@@ -30,10 +37,10 @@ public class GV {
     }
 
     static String MY_PORT = ""; // My Port
-    static String MY_NODE_ID = "";
+    static String MY_NID = "";
 
-    static Queue<String> msgRecvQueue = new LinkedList<String>();
-    static Queue<String> msgSendQueue = new LinkedList<String>();
-    static Boolean isEmptyMsgRecvQueue = true;
-    static Boolean isEmptyMsgSendQueue = true;
+    static Queue<Message> msgRecvQueue = new LinkedList<Message>();
+    static Queue<Message> msgSendQueue = new LinkedList<Message>();
+    static Boolean isEmptyMRQ = true;
+    static Boolean isEmptyMSQ = true;
 }
