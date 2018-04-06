@@ -1,6 +1,8 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
 
+import java.util.ArrayList;
+
 /*
  * Reference:
  * - Android Dev Docs:
@@ -10,21 +12,23 @@ package edu.buffalo.cse.cse486586.simpledht;
  */
 public class Chord {
 
-    private String myNodeID = "";
-    private String predNodeID = "";
-    private String succNodeID = "";
+    static final String TAG = "CHORD";
+    static final int FINGER_TABLE_SIZE = 40;
+
+    private String myNID = "";
+    private String predNID = "";
+    private String succNID = "";
     private Boolean isSingleNode = true;
+
+    // Finger Table
+    private ArrayList<ArrayList> fingers = new ArrayList<ArrayList>(FINGER_TABLE_SIZE);
 
     private static final Chord node = new Chord();
 
     private Chord() {
-        this.createNode();
-    }
-
-    private void createNode() {
-        this.myNodeID = GV.NODE_ID_MAP.get(GV.MY_PORT);
-        this.predNodeID = this.myNodeID;
-        this.succNodeID = this.myNodeID;
+        this.myNID = Crypto.genHash(GV.MY_PORT);
+        this.predNID = this.myNID;
+        this.succNID = this.myNID;
         this.isSingleNode = true;
     }
 
@@ -32,14 +36,47 @@ public class Chord {
         return node;
     }
 
-    private void join() {}
+    private void initFingerTable() {
 
-    private void notifyNode() {}
+    }
 
-    private void fixFingers() {}
+    private void updateOthers() {
 
-    private void stabilize() {}
+    }
+
+    private void updateFingerTable() {
+
+    }
+
+    private void join() {
+        //
+        // pred = nil
+        // succ = n'.find_succ(n)
+    }
+
+    private void stabilize() {
+        // verify n's immediate successor, and tell the successor about n
+        // x = successor.predecessor
+        // if (x ∈ (n, succ))
+        //      succ = x
+        // succ.notify(n)
+    }
+
+    private void notifyNode() {
+        // n' thinks it might be our predecessor
+        // if (pred is nil or n' ∈ (pred, n))
+        //      pred = n'
+    }
+
+    private void fixFingers() {
+        // Refresh finger table entries
+        // i = random index > 1 into finger[];
+        // finger[i].node = find_succ(finger[i].start);
+    }
+
+
 
     private void lookup() {}
+
 
 }
