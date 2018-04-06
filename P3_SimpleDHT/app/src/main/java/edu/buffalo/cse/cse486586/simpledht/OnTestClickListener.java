@@ -68,12 +68,18 @@ public class OnTestClickListener implements OnClickListener {
 			} else {
 				publishProgress("Query fail\n");
 			}
-			
+
+            if (testDelete()) {
+				publishProgress("Delete success\n");
+			} else {
+				publishProgress("Delete fail\n");
+			}
+
 			return null;
 		}
 		
 		protected void onProgressUpdate(String...strings) {
-			mTextView.append(strings[0]);
+            mTextView.append(strings[0]);
 
 			return;
 		}
@@ -136,5 +142,19 @@ public class OnTestClickListener implements OnClickListener {
 
 			return true;
 		}
-	}
+
+        private boolean testDelete() {
+			try {
+				for (int i = 0; i < TEST_CNT; i++) {
+					mContentResolver.delete(mUri, "key"+String.valueOf(i), null);
+				}
+			} catch (Exception e) {
+				Log.e(TAG, e.toString());
+				return false;
+			}
+
+			return true;
+		}
+
+    }
 }
