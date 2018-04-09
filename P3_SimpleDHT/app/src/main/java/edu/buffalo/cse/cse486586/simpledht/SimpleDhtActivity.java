@@ -27,6 +27,8 @@ public class SimpleDhtActivity extends Activity {
         TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         String portStr = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
         GV.MY_PORT = String.valueOf((Integer.parseInt(portStr) * 2));
+        GV.MY_NID = Crypto.genHash(GV.MY_PORT);
+        Chord chord = Chord.getInstance();
 
         GV.uiTV = (TextView) findViewById(R.id.textView1);
         GV.uiTV.setMovementMethod(new ScrollingMovementMethod());
@@ -34,47 +36,35 @@ public class SimpleDhtActivity extends Activity {
         GV.dbUri = new Uri.Builder().scheme("content").authority(GV.URI).build();
         GV.dbCR = getContentResolver();
 
+        // Test Insert, Query and Delete One
         findViewById(R.id.button3).setOnClickListener(
                 new OnTestClickListener(GV.uiTV, getContentResolver()));
-
+        // LDump - @
         findViewById(R.id.button1).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick (View v) {
-                // LDump - @
-                initInsert();
-                if (testQuery("@"))
-                    GV.uiTV.append("Query local success\n");
-                else
-                    GV.uiTV.append("Query local fail\n");
-                if (testDelete("@")) {
-                    GV.uiTV.append("Delete local success\n");
-                } else {
-                    GV.uiTV.append("Delete local fail\n");
-                }
+                testInsert();
+                if (testQuery("@")) GV.uiTV.append("Query local success\n");
+                else GV.uiTV.append("Query local fail\n");
+                if (testDelete("@"))  GV.uiTV.append("Delete local success\n");
+                else GV.uiTV.append("Delete local fail\n");
             }
         });
 
+        // GDump - *
         findViewById(R.id.button2).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick (View v) {
-                // GDump - *
-                initInsert();
-                if (testQuery("*"))
-                    GV.uiTV.append("Query all success\n");
-                else
-                    GV.uiTV.append("Query all fail\n");
-                if (testDelete("*")) {
-                    GV.uiTV.append("Delete all success\n");
-                } else {
-                    GV.uiTV.append("Delete all fail\n");
-                }
+                testInsert();
+                if (testQuery("*")) GV.uiTV.append("Query all success\n");
+                else GV.uiTV.append("Query all fail\n");
+                if (testDelete("*"))  GV.uiTV.append("Delete all success\n");
+                else GV.uiTV.append("Delete all fail\n");
             }
         });
 
         new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
-        Chord node = Chord.getNode();
 
     }
 
@@ -85,7 +75,16 @@ public class SimpleDhtActivity extends Activity {
         return true;
     }
 
-    private void initInsert() {
+    // Leave chord when app stop
+    @Override
+    protected void onStop () {
+        super.onStop();
+        Chord chord = Chord.getInstance();
+        chord.leave();
+    }
+
+    // Support test functions
+    private void testInsert() {
         ContentValues cv = new ContentValues();
         for (int i=0; i<30; i++) {
             cv.put("key", "key" + i);

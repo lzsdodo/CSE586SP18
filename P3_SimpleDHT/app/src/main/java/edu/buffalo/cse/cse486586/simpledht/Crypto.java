@@ -6,8 +6,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
 
-
-
 public class Crypto {
 
     static final String TAG = "CRYPTO";
@@ -29,7 +27,6 @@ public class Crypto {
             byte[] sha1Hash = sha1.digest(inputStr.getBytes());
             // hexStr, 20 chars;
             String hexStr = bytesToHexStr(sha1Hash);
-            Log.i("HASH", inputStr + ": " + hexStr);
             return hexStr;
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();

@@ -1,7 +1,7 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
 
-import java.util.ArrayList;
+import android.util.Log;
 
 /*
  * Reference:
@@ -13,45 +13,65 @@ import java.util.ArrayList;
 public class Chord {
 
     static final String TAG = "CHORD";
-    static final int FINGER_TABLE_SIZE = 40;
+    static final int FINGER_TABLE_SIZE = 16;
 
-    private String myNID = "";
-    private String predNID = "";
-    private String succNID = "";
-    private Boolean isSingleNode = true;
+    // static final String CHORD_START = "0000000000000000000000000000000000000000";
+    // static final String CHORD_END   = "ffffffffffffffffffffffffffffffffffffffff";
 
-    // Finger Table
-    private ArrayList<ArrayList> fingers = new ArrayList<ArrayList>(FINGER_TABLE_SIZE);
+    private static Chord node;
 
-    private static final Chord node = new Chord();
+    private String nID;
+    private String nPort;
+    private String predNID;
+    private String predPort;
+    private String succNID;
+    private String succPort;
+    private FingerTable fingerTable;
 
     private Chord() {
-        this.myNID = Crypto.genHash(GV.MY_PORT);
-        this.predNID = this.myNID;
-        this.succNID = this.myNID;
-        this.isSingleNode = true;
+        this.nID = GV.MY_NID;
+        this.nPort = GV.MY_PORT;
+        this.predNID = null;
+        this.predPort = null;
+        this.succNID = null;
+        this.succPort = null;
+        this.logInfo();
+        this.fingerTable = new FingerTable(this.nID, this.nPort, FINGER_TABLE_SIZE);
     }
 
-    public static Chord getNode() {
+    public static Chord getInstance() {
+        if (node == null)
+            node = new Chord();
         return node;
     }
 
-    private void initFingerTable() {
-
-    }
+    public String getNID() {return this.nID;}
+    public String getNPort() {return this.nPort;}
 
     private void updateOthers() {
 
     }
 
-    private void updateFingerTable() {
-
-    }
-
-    private void join() {
-        //
+    private void join(String nPort) {
         // pred = nil
         // succ = n'.find_succ(n)
+
+        // if(n') {
+        //     initFingerTable(n');
+        //     updateOthers();
+        //     // move keys in (pred, n] from succ
+        // } else { // n is the only node in the network
+        //     for (int i=0; i<FINGER_TABLE_SIZE; i++) {
+        //         finger[i].setNID(this.myNID);
+        //     }
+        //     this.pred = this.mNID;
+        // }
+    }
+
+    private void notifyNode() {
+        // n' thinks it might be our predecessor
+        // if (pred is nil or n' ∈ (pred, n))
+        //      pred = n'
     }
 
     private void stabilize() {
@@ -62,21 +82,48 @@ public class Chord {
         // succ.notify(n)
     }
 
-    private void notifyNode() {
-        // n' thinks it might be our predecessor
-        // if (pred is nil or n' ∈ (pred, n))
-        //      pred = n'
+
+    public String lookup(String kid) {
+        // Single node: succNID = predNID = null;
+        if (this.succNID == null)
+            return this.nPort;
+
+        // Local
+        if (this.inInterval(kid, this.predNID, this.nID))
+            return this.nPort;
+
+        // Two nodes: succNID=predNID; Three or more: succNID!=predNID;
+        if (this.succNID.equals(this.predNID))
+            return this.succPort;
+        else
+            return this.fingerTable.lookupFingerTable(kid, this.succPort);
     }
 
-    private void fixFingers() {
-        // Refresh finger table entries
-        // i = random index > 1 into finger[];
-        // finger[i].node = find_succ(finger[i].start);
+    public void leave() {
+        // TODO
+        // 1. notify neighbors (pred and succ)
+        // 2. query local
+        // 3. send insert to succ
     }
 
+    public static boolean inInterval(String id, String fromID, String toID) {
+        if (toID.compareTo(fromID) > 0) {
+            if ((id.compareTo(fromID) > 0) && (id.compareTo(toID) < 0))
+                return true;
+            else
+                return false;
+        } else {
+            if ((id.compareTo(fromID) < 0) && (id.compareTo(toID) > 0))
+                return false;
+            else
+                return true;
+        }
+    }
 
-
-    private void lookup() {}
-
+    private void logInfo() {
+        Log.v(TAG, "NODE: " + this.nPort + "-" + this.nID + "\n" +
+                "PRED: " + this.predPort + "-" + this.predNID + "\n" +
+                "SUCC: " + this.succPort + "-" + this.succNID);
+    }
 
 }

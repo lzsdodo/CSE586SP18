@@ -13,9 +13,11 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
     @Override
     protected Void doInBackground (Void...voids) {
         Log.d(TAG, "START QueueTask");
+        Chord myNode = Chord.getInstance();
 
         while (true) {
             try {
+
                 // 1. Handle Receive Message
                 GV.isEmptyMRQ = GV.msgRecvQueue.peek() == null;
                 if (!GV.isEmptyMRQ) {

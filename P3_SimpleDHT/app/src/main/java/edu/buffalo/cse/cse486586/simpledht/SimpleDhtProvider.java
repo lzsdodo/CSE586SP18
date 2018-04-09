@@ -3,41 +3,79 @@ package edu.buffalo.cse.cse486586.simpledht;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.database.MatrixCursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.util.Log;
 
+import java.util.HashMap;
+import java.util.Map;
+
+/*
+ * Reference
+ *  Dev Docs:
+ *      - MatrixCursor: https://developer.android.com/reference/android/database/MatrixCursor.html
+ */
+
 public class SimpleDhtProvider extends ContentProvider {
 
-    private SQLiteHelper dbHelper;
-    private SQLiteDatabase db;
+    private static boolean isBusy = false;
 
-    // API, with logic control in these functions
+    private SQLiteHelper dbHelper;
+
+    // MAIN API, with logic control in these functions
+
     @Override
     public Uri insert(Uri uri, ContentValues values) {
-        // 1. get key
-        // 2. get kid, genHash(key)
-        // 3. lookup(kid)
-        // 4. insert to local or send to other nodes
-        this.insertOne(values);
+        this.setIsBusy(true);
+
+        String key = values.getAsString("key");
+        String val = values.getAsString("value");
+
+        String kid = Crypto.genHash(key);
+        String port = Chord.getInstance().lookup(kid);
+
+        if(port.equals(GV.MY_PORT)) {
+            this.insertOne(values); // local
+
+        } else {
+            // TODO
+
+            // insert to other node
+
+        }
+
+        this.setIsBusy(false);
         return uri;
     }
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
+        this.setIsBusy(true);
         int affectedRows = 0;
 
         if (selection.equals("@")) {
             affectedRows = this.deleteAll();
+
         } else if (selection.equals("*")) {
             affectedRows = this.deleteAll();
-            // Send msg to other nodes
+            // TODO
+            // Tell succ node
+
         } else {
-            // lookup(genHash(key))
-            // Delete local or Send msg to other nodes
-            affectedRows = this.deleteOne(selection);
+            String kid = Crypto.genHash(selection);
+            String port = Chord.getInstance().lookup(kid);
+
+            if(port.equals(GV.MY_PORT)) {
+                affectedRows = this.deleteOne(selection);
+            } else {
+                // TODO
+                // Tell the node to delete
+
+            }
         }
 
+        this.setIsBusy(false);
         return affectedRows;
     }
 
@@ -45,39 +83,77 @@ public class SimpleDhtProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection,
                         String[] selectionArgs, String sortOrder) {
+        this.setIsBusy(true);
+        Cursor c = null;
+
         if (selection.equals("@")) {
-            // By local? or other node?
-            return this.queryAll();
+            return this.queryAll(); // local
+
+        } else if (selection.equals("*")) {
+            c = this.queryAll();
+            // TODO
+            // 1. tell succ nodes
+            // 2. wait for all nodes result
+            // 3. combine all the result
+
         } else {
-            if (selection.equals("*")) {
-                return this.queryAll();
+            String kid = Crypto.genHash(selection);
+            String port = Chord.getInstance().lookup(kid);
+
+            if(port.equals(GV.MY_PORT)) {
+                c = this.queryOne(selection);
             } else {
-                return this.queryOne(selection);
+                // TODO
+                // wait for one node result
             }
         }
+
+        this.setIsBusy(false);
+        return c;
     }
+
+    private void insertNetwork() {}
+
+    private void deleteNetwork() {}
+
+    private void retrieveNetwork() {}
+
+
+    public Cursor makeCursor(HashMap<String, String> kvMap) {
+        String[] attributes = {"_id", "key", "value"};
+        MatrixCursor mCursor = new MatrixCursor(attributes);
+        for (Map.Entry entry: kvMap.entrySet()) {
+            mCursor.addRow(new Object[] {
+                    R.drawable.ic_launcher, entry.getKey(), entry.getValue()});
+        }
+        return mCursor;
+    }
+
+    public Cursor addRowsToCursor() {
+        return null;
+    }
+
+    private void setIsBusy(boolean bool) {this.isBusy = bool;}
+
 
 
     // Basic insert, query and delete operation on database
     private void insertOne(ContentValues values) {
-        db = dbHelper.getWritableDatabase();
-
-        long newRowId = db.insertWithOnConflict(dbHelper.TABLE_NAME,
-                null, values, db.CONFLICT_IGNORE);
+        long newRowId = this.dbHelper.getWritableDatabase().insertWithOnConflict(
+                this.dbHelper.TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_IGNORE);
 
         Log.v("INSERT", "ROW=" + newRowId + "; KV=\'" +
                 values.getAsString("key") + ", " +
                 values.getAsString("value") + "\'");
-
     }
 
     private Cursor queryOne(String key) {
-        String[] columns = new String[] {dbHelper.COLUMN_NAME_KEY, dbHelper.COLUMN_NAME_VALUE};
-        String selection = dbHelper.COLUMN_NAME_KEY + "=?";
+        String[] columns = new String[] {this.dbHelper.COLUMN_NAME_KEY, this.dbHelper.COLUMN_NAME_VALUE};
+        String selection = this.dbHelper.COLUMN_NAME_KEY + "=?";
         String[] selectedKey = new String[] {key};
 
-        Cursor c = dbHelper.getReadableDatabase().query(
-                dbHelper.TABLE_NAME, columns, selection, selectedKey,
+        Cursor c = this.dbHelper.getReadableDatabase().query(
+                this.dbHelper.TABLE_NAME, columns, selection, selectedKey,
                 null, null, null, "1");
         c.moveToFirst();
 
@@ -86,10 +162,10 @@ public class SimpleDhtProvider extends ContentProvider {
     }
 
     private Cursor queryAll() {
-        String[] columns = new String[] {dbHelper.COLUMN_NAME_KEY, dbHelper.COLUMN_NAME_VALUE};
+        String[] columns = new String[] {this.dbHelper.COLUMN_NAME_KEY, this.dbHelper.COLUMN_NAME_VALUE};
 
-        Cursor c = dbHelper.getReadableDatabase().query(
-                dbHelper.TABLE_NAME, columns, null, null,
+        Cursor c = this.dbHelper.getReadableDatabase().query(
+                this.dbHelper.TABLE_NAME, columns, null, null,
                 null, null, null);
         c.moveToFirst();
 
@@ -98,38 +174,37 @@ public class SimpleDhtProvider extends ContentProvider {
     }
 
     private int deleteOne(String key) {
-        String selection = dbHelper.COLUMN_NAME_KEY + "=?";
+        String selection = this.dbHelper.COLUMN_NAME_KEY + "=?";
         String[] selectedKey = new String[] {key};
 
-        int affectedRows = dbHelper.getWritableDatabase().delete(
-                dbHelper.TABLE_NAME, selection, selectedKey);
+        int affectedRows = this.dbHelper.getWritableDatabase().delete(
+                this.dbHelper.TABLE_NAME, selection, selectedKey);
 
         Log.v("DELETE", "KEY=\'" + key + "\'");
         return affectedRows;
     }
 
     private int deleteAll() {
-        int affectedRows = dbHelper.getWritableDatabase().delete(
-                dbHelper.TABLE_NAME, null, null);
+        int affectedRows = this.dbHelper.getWritableDatabase().delete(
+                this.dbHelper.TABLE_NAME, null, null);
         Log.v("DELETE ALL", affectedRows + " ROWS.");
         this.countRows();
         return affectedRows;
     }
 
     private void countRows() {
-        Cursor c = dbHelper.getReadableDatabase().query(
-                dbHelper.TABLE_NAME, null, null, null,
+        Cursor c = this.dbHelper.getReadableDatabase().query(
+                this.dbHelper.TABLE_NAME, null, null, null,
                 null, null, null);
         Log.v("COUNT", c.getCount() + "");
         c.close();
     }
 
-
     // Other basic functions
     @Override
     public boolean onCreate() {
-        dbHelper = new SQLiteHelper(getContext());
-        dbHelper.getWritableDatabase().execSQL("DELETE FROM " + dbHelper.TABLE_NAME + ";"); // Clean Table
+        this.dbHelper = SQLiteHelper.getInstance(getContext());
+        this.dbHelper.getWritableDatabase().execSQL("DELETE FROM " + dbHelper.TABLE_NAME + ";"); // Clean Table
         return true;
     }
 
