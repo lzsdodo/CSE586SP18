@@ -14,7 +14,6 @@ public class Chord {
 
     static final String TAG = "CHORD";
     static final int FINGER_TABLE_SIZE = 16;
-
     // static final String CHORD_START = "0000000000000000000000000000000000000000";
     // static final String CHORD_END   = "ffffffffffffffffffffffffffffffffffffffff";
 
@@ -47,9 +46,6 @@ public class Chord {
 
     private void join(String nID, String nPort) {
         String oldSuccNID = this.succNID;
-
-
-
 
         // Handle join request
         if (this.succNID == null) {
