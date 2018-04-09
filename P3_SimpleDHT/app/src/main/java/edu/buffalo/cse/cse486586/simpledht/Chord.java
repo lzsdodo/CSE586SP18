@@ -45,14 +45,71 @@ public class Chord {
         return node;
     }
 
-    public String getNID() {return this.nID;}
-    public String getNPort() {return this.nPort;}
+    private void join(String nID, String nPort) {
+        String oldSuccNID = this.succNID;
 
-    private void updateOthers() {
 
-    }
 
-    private void join(String nPort) {
+
+        // Handle join request
+        if (this.succNID == null) {
+            // Single node, [newNID, nID, newNID]
+            this.succNID = nID;
+            this.succPort = nPort;
+            this.predNID = nID;
+            this.predPort = nPort;
+
+        } else {
+            // Two nodes
+            String tmpPort = null;
+            if (this.succNID.equals(this.predNID)) {
+                tmpPort = this.succPort;
+                if (this.inInterval(nID, this.nID, this.succNID)) {
+                    // location [nID, newNID, succNID]
+                    this.succNID = nID;
+                    this.succPort = nPort;
+                } else {
+                    // location [predNID, newNID, nID]
+                    this.predNID = nID;
+                    this.predPort = nPort;
+                }
+
+            } else {
+                // Three or more nodes
+                if (this.inInterval(nID, this.predNID, this.succNID)) {
+                    if (nID.compareTo(this.nID) > 0) {
+                        // location [nID, newNID, succNID]
+                        tmpPort = this.succPort;
+                        this.succNID = nID;
+                        this.succPort = nPort;
+
+                    } else {
+                        // location [predNID, newNID, nID]
+                        tmpPort = this.predPort;
+                        this.predNID = nID;
+                        this.predPort = nPort;
+                    }
+
+                } else {
+                    // location [predNID, nID, succNID, newNID]
+                    this.joinSucc();
+                }
+            }
+
+            // Tell node that I receive join request
+            // And notify the related node
+            this.notifyNode(nPort, this.nPort);
+            if (tmpPort!= null)
+                this.notifyNode(tmpPort, nPort);
+
+            // stabilize when have new succ node
+            if (!oldSuccNID.equals(this.succNID)) {
+                this.stabilize();
+            }
+
+            // TODO: Update FingerTable
+        }
+
         // pred = nil
         // succ = n'.find_succ(n)
 
@@ -66,15 +123,24 @@ public class Chord {
         //     }
         //     this.pred = this.mNID;
         // }
+
     }
 
-    private void notifyNode() {
+    private void notifyNode(String targetPort, String newNodePort) {
+        // TODO
         // n' thinks it might be our predecessor
         // if (pred is nil or n' ∈ (pred, n))
         //      pred = n'
+
     }
 
+    private void joinSucc() {
+        // TODO
+    }
+
+
     private void stabilize() {
+        // TODO: when get new succ node
         // verify n's immediate successor, and tell the successor about n
         // x = successor.predecessor
         // if (x ∈ (n, succ))
@@ -106,7 +172,7 @@ public class Chord {
         // 3. send insert to succ
     }
 
-    public static boolean inInterval(String id, String fromID, String toID) {
+    private boolean inInterval(String id, String fromID, String toID) {
         if (toID.compareTo(fromID) > 0) {
             if ((id.compareTo(fromID) > 0) && (id.compareTo(toID) < 0))
                 return true;
