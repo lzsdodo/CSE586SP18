@@ -38,5 +38,15 @@
 
 ---    
 
+
+## P4: Simple Dynamo (Replicated, Distributed Key-Value Storage)
+> [Link: P4.md (Implementation details)](https://github.com/lzsdodo/CSE586SP18/blob/master/P4.md)
+
+- Implement data replication		
+- Implement data partitioning		
+- Handle node failures while continuing to provide availability and linearizability			
+
+---		
+
 ## Reference    
 > [Link: Reference.md](https://github.com/lzsdodo/CSE586SP18/blob/master/Reference.md)    
