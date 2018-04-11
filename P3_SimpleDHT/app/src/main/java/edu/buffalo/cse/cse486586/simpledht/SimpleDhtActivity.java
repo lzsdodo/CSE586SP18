@@ -25,14 +25,14 @@ public class SimpleDhtActivity extends Activity {
         setContentView(R.layout.activity_simple_dht_main);
 
         TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
-        String portStr = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
-        GV.MY_PORT = String.valueOf((Integer.parseInt(portStr) * 2));
-        GV.MY_NID = Crypto.genHash(GV.MY_PORT);
-        Chord chord = Chord.getInstance();
+        GV.MY_PORT = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
+        GV.MY_NID = Utils.genHash(GV.MY_PORT);
 
+        // UI
         GV.uiTV = (TextView) findViewById(R.id.textView1);
         GV.uiTV.setMovementMethod(new ScrollingMovementMethod());
 
+        // Database
         GV.dbUri = new Uri.Builder().scheme("content").authority(GV.URI).build();
         GV.dbCR = getContentResolver();
 
@@ -63,9 +63,13 @@ public class SimpleDhtActivity extends Activity {
             }
         });
 
+        // Chord
+        GV.knownNodes.add(GV.MY_PORT);
+        Chord chord = Chord.getInstance();
+
+        // Task Thread
         new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
     }
 
     @Override

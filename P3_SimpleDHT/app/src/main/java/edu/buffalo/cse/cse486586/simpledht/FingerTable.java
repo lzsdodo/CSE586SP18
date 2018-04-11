@@ -6,6 +6,8 @@ import java.util.ArrayList;
 
 public class FingerTable {
 
+    static final String TAG = "FINGER-TABLE";
+
     private ArrayList<Finger> fingers = new ArrayList<Finger>();
     private String nID;
     private String nPort;
@@ -19,74 +21,51 @@ public class FingerTable {
         this.initFingerTable(this.nID, this.nPort, this.ftSize);
     }
 
-    public String lookupFingerTable(String kID, String succPort) {
-        for (int i=ftSize-1; i>=0; i--) {
-            if (kID.compareTo(this.fingers.get(i).getStartID()) >= 0) {
-                return this.fingers.get(i).getSuccPort();
+    public String lookupFingerTable(String kID) {
+        if (this.inFingerTable(kID)) {
+            for (int i=ftSize-1; i>0; i--) {
+                if (Utils.inInterval(kID,
+                        this.fingers.get(i-1).getStartID(),
+                        this.fingers.get(i).getStartID())) {
+                    return this.fingers.get(i-1).getSuccPort();
+                }
             }
         }
-        return succPort;
+        return this.fingers.get(this.ftSize-1).getSuccPort();
     }
 
+    public void updateFingerTable(String nID, String nPort) {
+        // bool can add to the parameter: true as join, false as leave;
+        boolean bool = true;
 
-
-    public void updateFingerTable(String nID, String nPort, boolean bool) {
-        // Refresh finger table entries
-        // i = random index > 1 into finger[];
-        // finger[i].node = find_succ(finger[i].start);
-
-        // bool = true as join, false as leave
-        // TODO: When node join and leave
         if (bool) {
-            // Join
+            // Join only for now
             if (this.inFingerTable(nID)) {
-                for (int i=0; i<this.ftSize-1; i++) {
-                    if (this.fingers.get(i) != null) {
-                        if (this.inInterval(nID, this.fingers.get(i).getStartID(), this.fingers.get(i+1).getStartID())) {
-
-                        }
-                    } else {
-                        this.fingers.get(i).setSuccID(nID);
-                        this.fingers.get(i).setSuccPort(nPort);
+                // [fingers[0].startID ~ nID ~ finger[15].startID]
+                for (int i=ftSize-1; i>0; i--) {
+                    if (Utils.inInterval(nID,
+                            this.fingers.get(i-1).getStartID(),
+                            this.fingers.get(i).getStartID())) {
+                        this.fingers.get(i-1).updateFinger(nID, nPort);
                     }
-
                 }
-            }
 
-            if (this.fingers.get(this.ftSize-1).getSuccID() != null){
-                if (nID.compareTo(this.fingers.get(this.ftSize-1).getSuccID()) < 0) {
-                    this.fingers.get(this.ftSize-1).setSuccID(nID);
-                    this.fingers.get(this.ftSize-1).setSuccPort(nPort);
-                }
             } else {
-                this.fingers.get(this.ftSize-1).setSuccID(nID);
-                this.fingers.get(this.ftSize-1).setSuccPort(nPort);
+                // [fingers[0].startID ~ finger[15].startID ~ nID]
+                this.fingers.get(this.ftSize-1).updateFinger(nID, nPort);
             }
 
         } else {
             // Leave
+            Log.e(TAG, "FINGER TABLE UPDATE ERROR" );
         }
         this.logInfo();
     }
 
-    public boolean inFingerTable(String nid) {
-        if (this.inInterval(nid, this.nID, this.fingers.get(this.ftSize-1).startID))
+    public boolean inFingerTable(String id) {
+        if (Utils.inInterval(id, this.nID, this.fingers.get(this.ftSize-1).startID))
             return true;
         return false;
-    }
-
-    private boolean inInterval(String id, String fromID, String toID) {
-        if (toID.compareTo(fromID) > 0) {
-            if ((id.compareTo(fromID) > 0) && (id.compareTo(toID) < 0))
-                return true;
-            else
-                return false;
-        } else {
-            if ((id.compareTo(fromID) < 0) && (id.compareTo(toID) > 0))
-                return false;
-            else
-                return true;
-        }
     }
 
     private void initFingerTable(String nID, String nPort, int ftSize) {
@@ -94,13 +73,12 @@ public class FingerTable {
         String prefNID = nID.substring(0, partition);
         String suffNID = nID.substring(partition);
 
-        for (int i=0; i<ftSize; i++) {
+        this.fingers.add(new Finger(this.nID));
+        for (int i=1; i<ftSize; i++) {
             String startID = genPrefStartID(prefNID, i) + suffNID;
             this.fingers.add(new Finger(startID));
         }
         this.logInfo();
-
-        this.updateFingerTable(nID, nPort, true);
     }
 
     private String genPrefStartID(String prefNID, int index) {
@@ -131,8 +109,10 @@ public class FingerTable {
     }
 
     private void logInfo() {
+        int i = 0;
         for (Finger finger : fingers) {
-            Log.v("FT", finger.toString());
+            Log.d("FT", i + ": " + finger.toString());
+            i++;
         }
     }
 
@@ -150,11 +130,34 @@ public class FingerTable {
         }
 
         public String getStartID() {return this.startID;}
-        public String getSuccID() {return this.succID;}
+        // public String getSuccID() {return this.succID;}
         public String getSuccPort() {return this.succPort;}
 
         public void setSuccID(String succID) {this.succID = succID;}
         public void setSuccPort(String succPort) {this.succPort = succPort;}
+
+        public void updateFinger(String succID, String succPort) {
+            if (this.succID != null) {
+                if (this.startID.compareTo(this.succID) < 0) {
+                    if ((succID.compareTo(this.startID) > 0)
+                            && (succID.compareTo(this.succID) < 0)) {
+                        this.setSuccID(succID);
+                        this.setSuccPort(succPort);
+                    }
+                } else {
+                    if ((succID.compareTo(this.startID) > 0)
+                            || (succID.compareTo(this.succID) < 0)) {
+                        this.setSuccID(succID);
+                        this.setSuccPort(succPort);
+                    }
+                }
+
+
+            } else {
+                this.succID = succID;
+                this.succPort = succPort;
+            }
+        }
 
         public String toString() {
             return this.startID + ", " + this.succID + ", " + this.succPort;

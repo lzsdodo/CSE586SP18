@@ -36,6 +36,7 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
 
         try {
             while (true) {
+                // Receive message
                 this.socket = this.serverSocket.accept();
 
                 if (this.socket != null) {
@@ -56,6 +57,11 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
                     out.close();
                     this.socket.close();
                     Log.d(TAG, "ServerSocket and IO Closed.");
+                }
+
+                // Send Message
+                while (GV.msgSendQueue.peek() == null) {
+
                 }
             }
 
@@ -97,7 +103,6 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
     protected void onPostExecute(Void result) {
         Log.e("LOST SERVER", "SERVER TASK SHOULD NOT BREAK.");
     }
-
 
 }
 

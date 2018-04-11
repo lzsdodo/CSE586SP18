@@ -3,23 +3,13 @@ package edu.buffalo.cse.cse486586.simpledht;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
-import android.database.MatrixCursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.util.Log;
 
-import java.util.HashMap;
-import java.util.Map;
 
-/*
- * Reference
- *  Dev Docs:
- *      - MatrixCursor: https://developer.android.com/reference/android/database/MatrixCursor.html
- */
 
 public class SimpleDhtProvider extends ContentProvider {
-
-    private static boolean isBusy = false;
 
     private SQLiteHelper dbHelper;
 
@@ -27,55 +17,60 @@ public class SimpleDhtProvider extends ContentProvider {
 
     @Override
     public Uri insert(Uri uri, ContentValues values) {
-        this.setIsBusy(true);
+        GV.dbIsBusy = true;
+        Chord chord = Chord.getInstance();
 
         String key = values.getAsString("key");
-        String val = values.getAsString("value");
+        String value = values.getAsString("value");
 
-        String kid = Crypto.genHash(key);
-        String port = Chord.getInstance().lookup(kid);
+        String kid = Utils.genHash(key);
+        String targetPort = Chord.getInstance().lookup(kid);
 
-        if(port.equals(GV.MY_PORT)) {
-            this.insertOne(values); // local
+        if(targetPort.equals(chord.getNPort())) {
+            // insert one on local
+            this.insertOne(values);
 
         } else {
-            // TODO
-
-            // insert to other node
-
+            // tell the specific node to insert
+            GV.msgSendQueue.offer(new Message(Message.TYPE.INSERT_ONE,
+                    chord.getNPort(), targetPort, key, value));
         }
 
-        this.setIsBusy(false);
+        GV.dbIsBusy = false;
         return uri;
     }
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
-        this.setIsBusy(true);
         int affectedRows = 0;
+        GV.dbIsBusy = true;
+        Chord chord = Chord.getInstance();
 
         if (selection.equals("@")) {
+            // Delete all on local
             affectedRows = this.deleteAll();
 
         } else if (selection.equals("*")) {
-            affectedRows = this.deleteAll();
-            // TODO
-            // Tell succ node
+            affectedRows = this.delete(GV.dbUri, "@", null);
+            // Delete all on local and tell to succ node
+            GV.msgSendQueue.offer(new Message(Message.TYPE.DELETE_ALL,
+                    chord.getNPort(), chord.getSuccPort(), "*", null));
 
         } else {
-            String kid = Crypto.genHash(selection);
-            String port = Chord.getInstance().lookup(kid);
+            String kid = Utils.genHash(selection);
+            String targetPort = chord.lookup(kid);
 
-            if(port.equals(GV.MY_PORT)) {
+            if(targetPort.equals(chord.getNPort())) {
+                // delete one on local
                 affectedRows = this.deleteOne(selection);
             } else {
-                // TODO
-                // Tell the node to delete
-
+                // tell the specific node to delete
+                GV.msgSendQueue.offer(new Message(Message.TYPE.DELETE_ONE,
+                        chord.getNPort(), targetPort, selection, null));
             }
         }
 
-        this.setIsBusy(false);
+        GV.dbIsBusy = false;
         return affectedRows;
     }
 
@@ -83,59 +78,59 @@ public class SimpleDhtProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection,
                         String[] selectionArgs, String sortOrder) {
-        this.setIsBusy(true);
         Cursor c = null;
+        GV.dbIsBusy = true;
+        Chord chord = Chord.getInstance();
 
         if (selection.equals("@")) {
-            return this.queryAll(); // local
+            // query all on local
+            c = this.queryAll();
 
         } else if (selection.equals("*")) {
             c = this.queryAll();
-            // TODO
+            GV.resultAllMap.clear();
+            GV.resultAllMap = Utils.cursorToHashMap(c);
+
             // 1. tell succ nodes
+            GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ALL,
+                    chord.getNPort(), chord.getSuccPort(), "*", null));
+
             // 2. wait for all nodes result
+            GV.dbIsWaiting = true;
+            while (GV.dbIsWaiting); // Just blocked anb wait
+
             // 3. combine all the result
+            c = Utils.makeCursor(GV.resultAllMap);
+            GV.resultAllMap.clear();
 
         } else {
-            String kid = Crypto.genHash(selection);
-            String port = Chord.getInstance().lookup(kid);
+            String kid = Utils.genHash(selection);
+            String targetPort = chord.lookup(kid);
 
-            if(port.equals(GV.MY_PORT)) {
+            if(targetPort.equals(chord.getNPort())) {
                 c = this.queryOne(selection);
+
             } else {
-                // TODO
-                // wait for one node result
+                if (GV.dbIsOtherQuery) {
+                    GV.dbIsOtherQuery = false;
+                    c = null;
+
+                } else {
+                    GV.resultOneMap.clear();
+                    // tell specific node
+                    GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ONE,
+                            chord.getNPort(), targetPort, selection, null));
+                    // wait for one node result
+                    while (GV.resultOneMap.isEmpty()); // Just blocked anb wait
+                    c = Utils.makeCursor(GV.resultOneMap);
+                    GV.resultOneMap.clear();
+                }
             }
         }
 
-        this.setIsBusy(false);
+        GV.dbIsBusy = false;
         return c;
     }
-
-    private void insertNetwork() {}
-
-    private void deleteNetwork() {}
-
-    private void retrieveNetwork() {}
-
-
-    public Cursor makeCursor(HashMap<String, String> kvMap) {
-        String[] attributes = {"_id", "key", "value"};
-        MatrixCursor mCursor = new MatrixCursor(attributes);
-        for (Map.Entry entry: kvMap.entrySet()) {
-            mCursor.addRow(new Object[] {
-                    R.drawable.ic_launcher, entry.getKey(), entry.getValue()});
-        }
-        return mCursor;
-    }
-
-    public Cursor addRowsToCursor() {
-        return null;
-    }
-
-    private void setIsBusy(boolean bool) {this.isBusy = bool;}
-
-
 
     // Basic insert, query and delete operation on database
     private void insertOne(ContentValues values) {

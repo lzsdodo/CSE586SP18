@@ -41,26 +41,25 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
     @Override
     protected Void doInBackground(String... params) {
         String msgToSend = params[0];
-        String remotePort = params[1];
+        String targetPort = params[1];
+        Integer remotePort = Integer.parseInt(targetPort) * 2;
 
         boolean connFlag = false;
-
         try {
-            SocketAddress socketAddr = new InetSocketAddress(
-                    GV.REMOTE_ADDR, Integer.parseInt(remotePort));
+            SocketAddress socketAddr = new InetSocketAddress(GV.REMOTE_ADDR, remotePort);
             Socket socket = new Socket();
             socket.connect(socketAddr); // Connect Timeout
             // socket.setOOBInline(true); // For sendUrgentData
 
             if (socket.isConnected()) {
-                Log.d(TAG, "CONNECTED SERVER: " + socket.getRemoteSocketAddress());
+                Log.v(TAG, "CONNECTED SERVER: " + socket.getRemoteSocketAddress());
                 socket.setSendBufferSize(8192); // Send Buff Default 8192
                 socket.setSoTimeout(500); // Response Timeout
 
                 InputStream in = socket.getInputStream();
                 OutputStream out = socket.getOutputStream();
 
-                Log.d(TAG, "MSG: " + msgToSend + " SENT.");
+                Log.v(TAG, "MSG: " + msgToSend + " SENT.");
                 out.write(msgToSend.getBytes());
                 out.flush();
 
@@ -70,10 +69,10 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
                     socket.close();
                 }
                 connFlag = true;
-                Log.d(TAG, "CLIENTSOCKET CLOSED.");
+                Log.v(TAG, "CLIENTSOCKET CLOSED.");
             }
-        }
-        catch (SocketTimeoutException e) {
+
+        } catch (SocketTimeoutException e) {
             // Server response timeout
             Log.e(TAG, "ClientTask SocketTimeoutException");
         } catch (SocketException e) {
@@ -93,9 +92,8 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
             Log.e(TAG, "ClientTask Exception");
         } finally {
             if (!connFlag)
-                Log.e(TAG, "Disconnected device: " + remotePort);
+                Log.e(TAG, "DISCONN DEVICE: " + targetPort);
         }
-
         return null;
     }
 }

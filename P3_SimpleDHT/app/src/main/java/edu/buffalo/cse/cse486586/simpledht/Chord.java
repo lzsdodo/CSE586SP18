@@ -14,8 +14,6 @@ public class Chord {
 
     static final String TAG = "CHORD";
     static final int FINGER_TABLE_SIZE = 16;
-    // static final String CHORD_START = "0000000000000000000000000000000000000000";
-    // static final String CHORD_END   = "ffffffffffffffffffffffffffffffffffffffff";
 
     private static Chord node;
 
@@ -25,7 +23,7 @@ public class Chord {
     private String predPort;
     private String succNID;
     private String succPort;
-    private FingerTable fingerTable;
+    public FingerTable fingerTable;
 
     private Chord() {
         this.nID = GV.MY_NID;
@@ -44,7 +42,22 @@ public class Chord {
         return node;
     }
 
-    private void join(String nID, String nPort) {
+    public String getNPort() {return this.nPort;}
+    public String getSuccPort() {return this.succPort;}
+
+    public void sendJoin(String cmdPort, String targetPort) {
+        Message joinMsg = new Message();
+        joinMsg.setCommandPort(cmdPort);
+        joinMsg.setTargetPort(targetPort);
+        joinMsg.setMsgType(Message.TYPE.JOIN);
+        GV.msgSendQueue.offer(joinMsg);
+    }
+
+    public void join(String nID, String nPort, boolean isNotify) {
+        // bool:
+        //      true: this node receive join request;
+        //      false: this node receive join info;
+
         String oldSuccNID = this.succNID;
 
         // Handle join request
@@ -60,7 +73,7 @@ public class Chord {
             String tmpPort = null;
             if (this.succNID.equals(this.predNID)) {
                 tmpPort = this.succPort;
-                if (this.inInterval(nID, this.nID, this.succNID)) {
+                if (Utils.inInterval(nID, this.nID, this.succNID)) {
                     // location [nID, newNID, succNID]
                     this.succNID = nID;
                     this.succPort = nPort;
@@ -72,7 +85,7 @@ public class Chord {
 
             } else {
                 // Three or more nodes
-                if (this.inInterval(nID, this.predNID, this.succNID)) {
+                if (Utils.inInterval(nID, this.predNID, this.succNID)) {
                     if (nID.compareTo(this.nID) > 0) {
                         // location [nID, newNID, succNID]
                         tmpPort = this.succPort;
@@ -88,15 +101,18 @@ public class Chord {
 
                 } else {
                     // location [predNID, nID, succNID, newNID]
-                    this.joinSucc();
+                    this.sendJoinToSucc();
                 }
             }
 
             // Tell node that I receive join request
             // And notify the related node
-            this.notifyNode(nPort, this.nPort);
-            if (tmpPort!= null)
-                this.notifyNode(tmpPort, nPort);
+            if (!isNotify) {
+                this.sendNotify(nPort, this.nPort);
+                if (tmpPort!= null)
+                    this.sendNotify(tmpPort, nPort);
+            }
+
 
             // stabilize when have new succ node
             if (!oldSuccNID.equals(this.succNID)) {
@@ -122,28 +138,35 @@ public class Chord {
 
     }
 
-    private void notifyNode(String targetPort, String newNodePort) {
+    private void sendNotify(String cmdPort, String targetNPort) {
+
+    }
+
+    private void getNotify(String newNPort) {
         // TODO
         // n' thinks it might be our predecessor
         // if (pred is nil or n' ∈ (pred, n))
         //      pred = n'
 
+        if (!GV.knownNodes.contains(newNPort)) {
+            GV.knownNodes.add(newNPort);
+            String newNID = Utils.genHash(newNPort);
+            this.fingerTable.updateFingerTable(newNID, newNPort);
+
+        }
+
     }
 
-    private void joinSucc() {
+    private void sendJoinToSucc() {
         // TODO
     }
 
-
     private void stabilize() {
         // TODO: when get new succ node
-        // verify n's immediate successor, and tell the successor about n
-        // x = successor.predecessor
-        // if (x ∈ (n, succ))
-        //      succ = x
-        // succ.notify(n)
-    }
+        Log.e(TAG, "STABLIZING. <TBD>");
+        // 1. Query local all
 
+    }
 
     public String lookup(String kid) {
         // Single node: succNID = predNID = null;
@@ -151,14 +174,19 @@ public class Chord {
             return this.nPort;
 
         // Local
-        if (this.inInterval(kid, this.predNID, this.nID))
+        if (Utils.inInterval(kid, this.predNID, this.nID))
             return this.nPort;
 
-        // Two nodes: succNID=predNID; Three or more: succNID!=predNID;
-        if (this.succNID.equals(this.predNID))
+        // Two nodes: succNID=predNID;
+        if (this.succNID.equals(this.predNID)) {
             return this.succPort;
-        else
-            return this.fingerTable.lookupFingerTable(kid, this.succPort);
+
+        } else {
+            // Three or more: succNID!=predNID;
+            String targetPort = this.fingerTable.lookupFingerTable(kid);
+            if (targetPort != null) return targetPort;
+        }
+        return this.succPort;
     }
 
     public void leave() {
@@ -168,23 +196,9 @@ public class Chord {
         // 3. send insert to succ
     }
 
-    private boolean inInterval(String id, String fromID, String toID) {
-        if (toID.compareTo(fromID) > 0) {
-            if ((id.compareTo(fromID) > 0) && (id.compareTo(toID) < 0))
-                return true;
-            else
-                return false;
-        } else {
-            if ((id.compareTo(fromID) < 0) && (id.compareTo(toID) > 0))
-                return false;
-            else
-                return true;
-        }
-    }
-
     private void logInfo() {
-        Log.v(TAG, "NODE: " + this.nPort + "-" + this.nID + "\n" +
-                "PRED: " + this.predPort + "-" + this.predNID + "\n" +
+        Log.d(TAG, "PRED: " + this.predPort + "-" + this.predNID + "\n" +
+                "NODE: " + this.nPort + "-" + this.nID + "\n" +
                 "SUCC: " + this.succPort + "-" + this.succNID);
     }
 

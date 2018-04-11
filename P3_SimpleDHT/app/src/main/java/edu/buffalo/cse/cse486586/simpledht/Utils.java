@@ -1,14 +1,21 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
-import android.util.Log;
+import android.database.Cursor;
+import android.database.MatrixCursor;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
+import java.util.HashMap;
+import java.util.Map;
 
-public class Crypto {
+/*
+ * Reference
+ *  Dev Docs:
+ *      - MatrixCursor: https://developer.android.com/reference/android/database/MatrixCursor.html
+ */
 
-    static final String TAG = "CRYPTO";
+public class Utils {
 
     public static String bytesToHexStr(byte[] bytes) {
         Formatter formatter = new Formatter();
@@ -32,15 +39,6 @@ public class Crypto {
             e.printStackTrace();
         }
         return null;
-    }
-
-    public static int cmpHashStr(String s1, String s2) {
-        if (s1.compareTo(s2) < 0)
-            return -1;
-        else if (s1.compareTo(s2) == 0)
-            return 0;
-        else
-            return 1;
     }
 
     public static byte hexCharToByte(char c) {
@@ -82,5 +80,47 @@ public class Crypto {
         }
         return sb.toString();
     }
+
+    public static boolean inInterval(String id, String fromID, String toID) {
+
+        if (toID.compareTo(fromID) > 0) {
+            if ((id.compareTo(fromID) > 0) && (id.compareTo(toID) < 0))
+                return true;
+            else
+                return false;
+
+        } else {
+            if ((id.compareTo(fromID) < 0) && (id.compareTo(toID) > 0))
+                return false;
+            else
+                return true;
+        }
+    }
+
+    public static Cursor makeCursor(HashMap<String, String> kvMap) {
+        String[] attributes = {"_id", "key", "value"};
+        MatrixCursor mCursor = new MatrixCursor(attributes);
+        for (Map.Entry entry: kvMap.entrySet()) {
+            mCursor.addRow(new Object[] {
+                    R.drawable.ic_launcher, entry.getKey(), entry.getValue()});
+        }
+        return mCursor;
+    }
+
+    public static HashMap<String, String> cursorToHashMap(Cursor c) {
+        HashMap<String, String> map = new HashMap<String, String>();
+
+        c.moveToFirst();
+        while (!c.isAfterLast()) {
+            String k = c.getString(c.getColumnIndex("key"));
+            String v = c.getString(c.getColumnIndex("value"));
+            map.put(k, v);
+            c.moveToNext();
+        }
+        c.close();
+
+        return map;
+    }
+
 
 }
