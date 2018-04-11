@@ -51,10 +51,12 @@ public class SimpleDhtProvider extends ContentProvider {
             affectedRows = this.deleteAll();
 
         } else if (selection.equals("*")) {
-            affectedRows = this.delete(GV.dbUri, "@", null);
+            affectedRows = this.deleteAll();
             // Delete all on local and tell to succ node
-            GV.msgSendQueue.offer(new Message(Message.TYPE.DELETE_ALL,
-                    chord.getNPort(), chord.getSuccPort(), "*", null));
+            if (chord.getSuccPort() != null) {
+                GV.msgSendQueue.offer(new Message(Message.TYPE.DELETE_ALL,
+                        chord.getNPort(), chord.getSuccPort(), "*", null));
+            }
 
         } else {
             String kid = Utils.genHash(selection);
@@ -88,20 +90,23 @@ public class SimpleDhtProvider extends ContentProvider {
 
         } else if (selection.equals("*")) {
             c = this.queryAll();
-            GV.resultAllMap.clear();
-            GV.resultAllMap = Utils.cursorToHashMap(c);
 
-            // 1. tell succ nodes
-            GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ALL,
-                    chord.getNPort(), chord.getSuccPort(), "*", null));
+            if(chord.getSuccPort() != null) {
+                GV.resultAllMap.clear();
+                GV.resultAllMap = Utils.cursorToHashMap(c);
 
-            // 2. wait for all nodes result
-            GV.dbIsWaiting = true;
-            while (GV.dbIsWaiting); // Just blocked anb wait
+                // 1. tell succ nodes
+                GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ALL,
+                        chord.getNPort(), chord.getSuccPort(), "*", null));
 
-            // 3. combine all the result
-            c = Utils.makeCursor(GV.resultAllMap);
-            GV.resultAllMap.clear();
+                // 2. wait for all nodes result
+                GV.dbIsWaiting = true;
+                while (GV.dbIsWaiting); // Just blocked anb wait
+
+                // 3. combine all the result
+                c = Utils.makeCursor(GV.resultAllMap);
+                GV.resultAllMap.clear();
+            }
 
         } else {
             String kid = Utils.genHash(selection);

@@ -86,8 +86,6 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
                             GV.resultAllMap.put(msg.getMsgKey(), msg.getMsgValue());
                             break;
 
-
-
                         default: break;
                     }
 
