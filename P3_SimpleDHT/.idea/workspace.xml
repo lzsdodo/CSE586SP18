@@ -11,6 +11,7 @@
   <component name="ChangeListManager">
     <list default="true" id="df4a19eb-5a1a-415a-8d92-0f619563692a" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Message.java" afterPath="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Message.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/QueueTask.java" afterPath="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/QueueTask.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/SimpleDhtProvider.java" afterPath="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/SimpleDhtProvider.java" />
     </list>
@@ -35,18 +36,19 @@
     </system>
   </component>
   <component name="FileEditorManager">
-    <splitter split-orientation="horizontal" split-proportion="0.26602176">
+    <splitter split-orientation="horizontal" split-proportion="0.32164448">
       <split-first>
         <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
           <file leaf-file-name="SimpleDhtProvider.java" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/SimpleDhtProvider.java">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="-658">
-                  <caret line="59" column="0" lean-forward="false" selection-start-line="59" selection-start-column="0" selection-end-line="59" selection-end-column="0" />
+                <state relative-caret-position="225">
+                  <caret line="47" column="42" lean-forward="true" selection-start-line="47" selection-start-column="42" selection-end-line="47" selection-end-column="42" />
                   <folding>
                     <element signature="imports" expanded="true" />
-                    <element signature="method#query#0;class#SimpleDhtProvider#0" expanded="true" />
-                    <marker date="1523465425000" expanded="true" signature="7033:7158" ph="{...}" />
+                    <element signature="e#1775#1793#0" expanded="true" />
+                    <element signature="e#6753#6774#0" expanded="true" />
+                    <marker date="1523473377000" expanded="true" signature="10066:10191" ph="{...}" />
                   </folding>
                 </state>
               </provider>
@@ -94,8 +96,8 @@
               <file leaf-file-name="QueueTask.java" pinned="false" current-in-tab="true">
                 <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/QueueTask.java">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="285">
-                      <caret line="27" column="0" lean-forward="true" selection-start-line="27" selection-start-column="0" selection-end-line="27" selection-end-column="0" />
+                    <state relative-caret-position="298">
+                      <caret line="40" column="17" lean-forward="true" selection-start-line="40" selection-start-column="17" selection-end-line="40" selection-end-column="17" />
                       <folding />
                     </state>
                   </provider>
@@ -105,7 +107,7 @@
           </split-first>
           <split-second>
             <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-              <file leaf-file-name="GV.java" pinned="false" current-in-tab="true">
+              <file leaf-file-name="GV.java" pinned="false" current-in-tab="false">
                 <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/GV.java">
                   <provider selected="true" editor-type-id="text-editor">
                     <state relative-caret-position="315">
@@ -119,21 +121,24 @@
                   </provider>
                 </entry>
               </file>
-              <file leaf-file-name="Message.java" pinned="false" current-in-tab="false">
+              <file leaf-file-name="Message.java" pinned="false" current-in-tab="true">
                 <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Message.java">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="360">
-                      <caret line="24" column="18" lean-forward="false" selection-start-line="24" selection-start-column="8" selection-end-line="24" selection-end-column="18" />
+                    <state relative-caret-position="411">
+                      <caret line="66" column="45" lean-forward="false" selection-start-line="66" selection-start-column="45" selection-end-line="66" selection-end-column="45" />
                       <folding>
+                        <element signature="class#TYPE#0;class#Message#0" expanded="true" />
                         <element signature="method#Message#1;class#Message#0" expanded="true" />
                         <element signature="method#getMsgType#0;class#Message#0" expanded="true" />
                         <element signature="method#getCommandPort#0;class#Message#0" expanded="true" />
                         <element signature="method#getTargetPort#0;class#Message#0" expanded="true" />
+                        <element signature="method#getMsgBody#0;class#Message#0" expanded="true" />
                         <element signature="method#getMsgKey#0;class#Message#0" expanded="true" />
                         <element signature="method#getMsgValue#0;class#Message#0" expanded="true" />
                         <element signature="method#setCommandPort#0;class#Message#0" expanded="true" />
                         <element signature="method#setTargetPort#0;class#Message#0" expanded="true" />
                         <element signature="method#setMsgType#0;class#Message#0" expanded="true" />
+                        <element signature="method#setMsgBody#0;class#Message#0" expanded="true" />
                         <element signature="method#setMsgKey#0;class#Message#0" expanded="true" />
                         <element signature="method#setMsgValue#0;class#Message#0" expanded="true" />
                       </folding>
@@ -1914,8 +1919,8 @@
         <option value="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Chord.java" />
         <option value="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/SimpleDhtActivity.java" />
         <option value="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Utils.java" />
-        <option value="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Message.java" />
         <option value="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/GV.java" />
+        <option value="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Message.java" />
         <option value="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/SimpleDhtProvider.java" />
         <option value="$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/QueueTask.java" />
       </list>
@@ -2069,7 +2074,7 @@
       <option name="ACTIVITY_CLASS" value="" />
       <method>
         <option name="Android.Gradle.BeforeRunTask" enabled="true" />
-        <option name="com.android.instantApps.provision.BeforeRunTask" enabled="true" clearCache="false" clearProvisionedDevices="false" myTimestamp="1523465479238" />
+        <option name="com.android.instantApps.provision.BeforeRunTask" enabled="true" clearCache="false" clearProvisionedDevices="false" myTimestamp="1523473467310" />
       </method>
     </configuration>
     <configuration default="true" type="AndroidTestRunConfigurationType" factoryName="Android Instrumented Tests">
@@ -2117,7 +2122,7 @@
       </Profilers>
       <method>
         <option name="Android.Gradle.BeforeRunTask" enabled="true" />
-        <option name="com.android.instantApps.provision.BeforeRunTask" enabled="true" clearCache="false" clearProvisionedDevices="false" myTimestamp="1523465479238" />
+        <option name="com.android.instantApps.provision.BeforeRunTask" enabled="true" clearCache="false" clearProvisionedDevices="false" myTimestamp="1523473467310" />
       </method>
     </configuration>
     <configuration default="true" type="Application" factoryName="Application">
@@ -2300,7 +2305,7 @@
       <option name="ACTIVITY_CLASS" value="" />
       <method>
         <option name="Android.Gradle.BeforeRunTask" enabled="true" />
-        <option name="com.android.instantApps.provision.BeforeRunTask" enabled="true" clearCache="false" clearProvisionedDevices="false" myTimestamp="1523465479239" />
+        <option name="com.android.instantApps.provision.BeforeRunTask" enabled="true" clearCache="false" clearProvisionedDevices="false" myTimestamp="1523473467311" />
       </method>
     </configuration>
     <list size="1">
@@ -2483,15 +2488,18 @@
         <state relative-caret-position="285">
           <caret line="31" column="28" lean-forward="false" selection-start-line="31" selection-start-column="28" selection-end-line="31" selection-end-column="28" />
           <folding>
+            <element signature="class#TYPE#0;class#Message#0" expanded="true" />
             <element signature="method#Message#1;class#Message#0" expanded="true" />
             <element signature="method#getMsgType#0;class#Message#0" expanded="true" />
             <element signature="method#getCommandPort#0;class#Message#0" expanded="true" />
             <element signature="method#getTargetPort#0;class#Message#0" expanded="true" />
+            <element signature="method#getMsgBody#0;class#Message#0" expanded="true" />
             <element signature="method#getMsgKey#0;class#Message#0" expanded="true" />
             <element signature="method#getMsgValue#0;class#Message#0" expanded="true" />
             <element signature="method#setCommandPort#0;class#Message#0" expanded="true" />
             <element signature="method#setTargetPort#0;class#Message#0" expanded="true" />
             <element signature="method#setMsgType#0;class#Message#0" expanded="true" />
+            <element signature="method#setMsgBody#0;class#Message#0" expanded="true" />
             <element signature="method#setMsgKey#0;class#Message#0" expanded="true" />
             <element signature="method#setMsgValue#0;class#Message#0" expanded="true" />
           </folding>
@@ -2839,28 +2847,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/ServerTask.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="330">
-          <caret line="22" column="0" lean-forward="true" selection-start-line="22" selection-start-column="0" selection-end-line="22" selection-end-column="0" />
-          <folding>
-            <element signature="imports" expanded="true" />
-            <element signature="method#onProgressUpdate#0;class#ServerTask#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/OnTestClickListener.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="345">
-          <caret line="41" column="40" lean-forward="true" selection-start-line="41" selection-start-column="20" selection-end-line="41" selection-end-column="40" />
-          <folding>
-            <element signature="class#Task#0;class#OnTestClickListener#0" expanded="true" />
-            <element signature="method#testInsert#0;class#Task#0;class#OnTestClickListener#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Chord.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-106">
@@ -2878,26 +2864,6 @@
             <element signature="method#sendJoinToSucc#0;class#Chord#0" expanded="true" />
             <element signature="method#stabilize#0;class#Chord#0" expanded="true" />
             <element signature="e#5529#5536#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Message.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="360">
-          <caret line="24" column="18" lean-forward="false" selection-start-line="24" selection-start-column="8" selection-end-line="24" selection-end-column="18" />
-          <folding>
-            <element signature="method#Message#1;class#Message#0" expanded="true" />
-            <element signature="method#getMsgType#0;class#Message#0" expanded="true" />
-            <element signature="method#getCommandPort#0;class#Message#0" expanded="true" />
-            <element signature="method#getTargetPort#0;class#Message#0" expanded="true" />
-            <element signature="method#getMsgKey#0;class#Message#0" expanded="true" />
-            <element signature="method#getMsgValue#0;class#Message#0" expanded="true" />
-            <element signature="method#setCommandPort#0;class#Message#0" expanded="true" />
-            <element signature="method#setTargetPort#0;class#Message#0" expanded="true" />
-            <element signature="method#setMsgType#0;class#Message#0" expanded="true" />
-            <element signature="method#setMsgKey#0;class#Message#0" expanded="true" />
-            <element signature="method#setMsgValue#0;class#Message#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -2943,22 +2909,69 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/SimpleDhtProvider.java">
+    <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/Message.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-658">
-          <caret line="59" column="0" lean-forward="false" selection-start-line="59" selection-start-column="0" selection-end-line="59" selection-end-column="0" />
+        <state relative-caret-position="411">
+          <caret line="66" column="45" lean-forward="false" selection-start-line="66" selection-start-column="45" selection-end-line="66" selection-end-column="45" />
+          <folding>
+            <element signature="class#TYPE#0;class#Message#0" expanded="true" />
+            <element signature="method#Message#1;class#Message#0" expanded="true" />
+            <element signature="method#getMsgType#0;class#Message#0" expanded="true" />
+            <element signature="method#getCommandPort#0;class#Message#0" expanded="true" />
+            <element signature="method#getTargetPort#0;class#Message#0" expanded="true" />
+            <element signature="method#getMsgBody#0;class#Message#0" expanded="true" />
+            <element signature="method#getMsgKey#0;class#Message#0" expanded="true" />
+            <element signature="method#getMsgValue#0;class#Message#0" expanded="true" />
+            <element signature="method#setCommandPort#0;class#Message#0" expanded="true" />
+            <element signature="method#setTargetPort#0;class#Message#0" expanded="true" />
+            <element signature="method#setMsgType#0;class#Message#0" expanded="true" />
+            <element signature="method#setMsgBody#0;class#Message#0" expanded="true" />
+            <element signature="method#setMsgKey#0;class#Message#0" expanded="true" />
+            <element signature="method#setMsgValue#0;class#Message#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/ServerTask.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="382">
+          <caret line="81" column="19" lean-forward="true" selection-start-line="81" selection-start-column="19" selection-end-line="81" selection-end-column="19" />
           <folding>
             <element signature="imports" expanded="true" />
-            <element signature="method#query#0;class#SimpleDhtProvider#0" expanded="true" />
-            <marker date="1523465425000" expanded="true" signature="7033:7158" ph="{...}" />
+            <element signature="method#onProgressUpdate#0;class#ServerTask#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/OnTestClickListener.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="124">
+          <caret line="41" column="40" lean-forward="true" selection-start-line="41" selection-start-column="20" selection-end-line="41" selection-end-column="40" />
+          <folding>
+            <element signature="class#Task#0;class#OnTestClickListener#0" expanded="true" />
+            <element signature="method#testInsert#0;class#Task#0;class#OnTestClickListener#0" expanded="true" />
+            <element signature="method#testQuery#0;class#Task#0;class#OnTestClickListener#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/SimpleDhtProvider.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="47" column="42" lean-forward="true" selection-start-line="47" selection-start-column="42" selection-end-line="47" selection-end-column="42" />
+          <folding>
+            <element signature="imports" expanded="true" />
+            <element signature="e#1775#1793#0" expanded="true" />
+            <element signature="e#6753#6774#0" expanded="true" />
+            <marker date="1523473377000" expanded="true" signature="10066:10191" ph="{...}" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/app/src/main/java/edu/buffalo/cse/cse486586/simpledht/QueueTask.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="285">
-          <caret line="27" column="0" lean-forward="true" selection-start-line="27" selection-start-column="0" selection-end-line="27" selection-end-column="0" />
+        <state relative-caret-position="298">
+          <caret line="40" column="17" lean-forward="true" selection-start-line="40" selection-start-column="17" selection-end-line="40" selection-end-column="17" />
           <folding />
         </state>
       </provider>

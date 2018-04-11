@@ -28,6 +28,7 @@ public class Message {
     private String commandPort = null;
     private String targetPort = null;
     private TYPE msgType = TYPE.NONE;
+    private String msgBody = null;
     private String msgKey = null;
     private String msgValue = null;
 
@@ -37,35 +38,29 @@ public class Message {
         this();
         switch (msgType) {
 
-            case DELETE_ONE:
-                this.setMsgType(TYPE.DELETE_ALL);
-                this.setCommandPort(cmdPort);
-                this.setTargetPort(targetPort);
-                this.setMsgKey(key);
-                this.setMsgValue(null);
-                break;
 
-            case DELETE_ALL:
-                this.setMsgType(TYPE.DELETE_ALL);
-                this.setCommandPort(cmdPort);
-                this.setTargetPort(targetPort);
-                this.setMsgKey("*");
-                this.setMsgValue(null);
+            default:
+                this.msgType = msgType;
+                this.commandPort = cmdPort;
+                this.targetPort = targetPort;
+                this.msgKey = key;
+                this.msgValue = value;
+                this.msgBody = this.msgKey + "<>" + this.msgValue;
                 break;
-
-            default: break;
         }
     }
 
     public TYPE getMsgType() {return this.msgType;}
     public String getCommandPort() {return this.commandPort;}
     public String getTargetPort() {return this.targetPort;}
+    public String getMsgBody () {return this.msgBody;}
     public String getMsgKey() {return this.msgKey;}
     public String getMsgValue() {return this.msgValue;}
 
     public void setCommandPort (String commandPort) {this.commandPort = commandPort;}
     public void setTargetPort (String targetPort) {this.targetPort = targetPort;}
     public void setMsgType (TYPE msgType) {this.msgType = msgType;}
+    public void setMsgBody (String msgBody) {this.msgBody = msgBody;}
     public void setMsgKey (String msgKey) {this.msgKey = msgKey;}
     public void setMsgValue (String msgValue) {this.msgValue = msgValue;}
 
@@ -73,19 +68,31 @@ public class Message {
         Log.v("PARSE MSG", s);
         String[] msgInfo = s.split("::");
         Message msg = new Message();
+
         msg.setCommandPort(msgInfo[0]);
         msg.setTargetPort(msgInfo[1]);
         msg.setMsgType(TYPE.valueOf(msgInfo[2]));
-        msg.setMsgKey(msgInfo[3]);
-        msg.setMsgValue(msgInfo[4]);
+        msg.setMsgBody(msgInfo[3]);
+
+        String[] kvPairs = msg.getMsgBody().split("<>");
+        if (kvPairs.length == 1) {
+            msg.setMsgKey(kvPairs[0]);
+            msg.setMsgValue(null);
+        } else if (kvPairs.length == 2) {
+            msg.setMsgKey(kvPairs[0]);
+            msg.setMsgValue(kvPairs[1]);
+        } else {
+            msg.setMsgKey(null);
+            msg.setMsgValue(null);
+        }
+
         return msg;
     }
 
     public String toString() {
         // senderPort::msgType::msgKey::msgVal
         return this.commandPort + "::" + this.targetPort + "::" +
-                this.msgType.name() + "::" +
-                this.msgKey + "::" + this.msgValue;
+                this.msgType.name() + "::" + this.msgBody;
     }
 
 

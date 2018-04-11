@@ -63,15 +63,15 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
                             break;
 
                         case DELETE_ALL:
-                            this.handleDeleteAll(cmdPort);
+                            GV.dbCR.delete(GV.dbUri, "*", new String[] {cmdPort});
                             break;
 
                         case QUERY_ONE:
-                            this.handleQueryOne(cmdPort, msg.getMsgKey());
+                            GV.dbCR.query(GV.dbUri, null, msg.getMsgKey(), new String[] {cmdPort}, null);
                             break;
 
                         case QUERY_ALL:
-                            this.handleQueryAll(cmdPort);
+                            GV.dbCR.query(GV.dbUri, null, "*", new String[] {cmdPort}, null);
                             break;
 
                         case QUERY_COMLETED:
@@ -111,68 +111,6 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
         GV.dbCR.insert(GV.dbUri, cv);
         cv.clear();
 
-    }
-
-    private void handleDeleteAll(String cmdPort) {
-        GV.dbCR.delete(GV.dbUri, "@", null);
-
-        if (cmdPort.equals(chord.getSuccPort())) {
-            // DONE: this node is the pred node of the cmd node
-            Log.d("DELETE ALL", "Command port: " + cmdPort + "\n" +
-                            "This port: " + GV.MY_PORT + "\n" +
-                            "Succ port: " + chord.getSuccPort());
-        } else {
-            // GO ON, Send to next node
-            GV.msgSendQueue.offer(new Message(Message.TYPE.DELETE_ALL,
-                    cmdPort, chord.getSuccPort(), "*", null));
-            Log.d("DELETE ALL", "IN LOOP.");
-        }
-
-    }
-
-    private void handleQueryOne(String cmdPort, String key) {
-        GV.dbIsOtherQuery = true;
-        Cursor c = GV.dbCR.query(GV.dbUri, null, key, null, null);
-
-        if (c == null) {
-            // Not in local, just tell target to query, no need to wait
-            String kid = Utils.genHash(key);
-            String targetPort = chord.lookup(kid);
-            GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ONE,
-                    cmdPort, targetPort, key, null));
-
-        } else {
-            // in local, return the result
-            c.moveToFirst();
-            String resKey = c.getString(c.getColumnIndex("key"));
-            String resValue = c.getString(c.getColumnIndex("value"));
-            c.close();
-            GV.msgSendQueue.offer(new Message(Message.TYPE.RESULT_ONE,
-                    cmdPort, cmdPort, resKey, resValue));
-        }
-        GV.dbIsOtherQuery = false;
-    }
-
-    private void handleQueryAll(String cmdPort) {
-        Cursor c = GV.dbCR.query(GV.dbUri, null, "@", null, null);
-        for (Map.Entry entry: Utils.cursorToHashMap(c).entrySet()) {
-            GV.msgSendQueue.offer(new Message(Message.TYPE.RESULT_ALL,
-                    cmdPort, cmdPort, entry.getKey().toString(), entry.getValue().toString()));
-        }
-
-        if (cmdPort.equals(chord.getSuccPort())) {
-            // DONE: this node is the pred node of the cmd node
-            GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_COMLETED,
-                    cmdPort, cmdPort, "*", null));
-            Log.d("QUERY ALL", "Command port: " + cmdPort + "\n" +
-                    "This port: " + GV.MY_PORT + "\n" +
-                    "Succ port: " + chord.getSuccPort());
-        } else {
-            // GO ON, Send to next node
-            GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ALL,
-                    cmdPort, chord.getSuccPort(), "*", null));
-            Log.d("QUERY ALL", "IN LOOP.");
-        }
     }
 
 }
