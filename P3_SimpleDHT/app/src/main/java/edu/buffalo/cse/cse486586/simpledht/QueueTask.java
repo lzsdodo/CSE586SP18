@@ -1,14 +1,8 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
-import android.content.ContentResolver;
 import android.content.ContentValues;
-import android.database.Cursor;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.util.Log;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class QueueTask extends AsyncTask<Void, Void, Void> {
 
@@ -21,39 +15,40 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
     protected Void doInBackground (Void...voids) {
         Log.d(TAG, "START QueueTask");
 
-        GV.PORTS.remove(GV.PORTS.indexOf(GV.MY_PORT));
-
         chord = Chord.getInstance();
         lastTime = System.currentTimeMillis();
 
         while (true) {
             try {
-                // 0: TODO: Build the chord ring at first
+                // 0: Build the chord ring at first
                 if (chord.getSuccPort() == null) {
                     if (System.currentTimeMillis() - lastTime > 1000) {
                         lastTime = System.currentTimeMillis();
-                        int random = (int) (Math.random()*4); // [0, 1, 2, 3]
-                        String tgtNodePort = GV.PORTS.get(random);
-                        Log.e(TAG, "Choose " + tgtNodePort);
-                        GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN,
-                                chord.getPort(), tgtNodePort, tgtNodePort));
+                        if (!GV.MY_PORT.equals("5554"))
+                            GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN, chord.getPort(), "5554", chord.getPort()));
+//                        int random = (int) (Math.random()*4); // [0, 1, 2, 3]
+//                        String tgtPort = GV.PORTS.get(random);
+//                        GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN, chord.getPort(), tgtPort, chord.getPort()));
                     }
                 }
 
-                // 1. TODO: Handle Receive Message
+                // 1. Handle Receive Message
                 if (!(GV.msgRecvQueue.peek() == null)) {
                     Message msg = GV.msgRecvQueue.poll(); // with Remove
+                    Log.e(TAG, "HANDLE RECV MSG: " + msg.toString());
 
                     String cmdPort = msg.getCmdPort();
                     chord.updateFingerTable(cmdPort);
                     
                     switch (msg.getMsgType()) {
                         case JOIN:
-                            chord.getJoin(msg.getMsgValue());
+                            Log.e(TAG, "HANDLE JOIN FOR: " + msg.getMsgBody());
+                            chord.getJoin(msg.getMsgBody());
                             break;
 
                         case NOTYFY:
-                            chord.getNotify(msg.getMsgValue());
+                            Log.e(TAG, "HANDLE NOTIFY FOR: " + msg.getMsgBody());
+                            chord.getNotify(msg.getMsgBody());
                             break;
 
                         case INSERT_ONE:

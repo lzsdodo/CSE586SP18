@@ -3,12 +3,19 @@ package edu.buffalo.cse.cse486586.simpledht;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.database.MatrixCursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.util.Log;
 
+import java.util.HashMap;
 import java.util.Map;
 
+/*
+ * Reference
+ *  Dev Docs:
+ *      - MatrixCursor: https://developer.android.com/reference/android/database/MatrixCursor.html
+ */
 
 public class SimpleDhtProvider extends ContentProvider {
 
@@ -18,7 +25,6 @@ public class SimpleDhtProvider extends ContentProvider {
 
     @Override
     public Uri insert(Uri uri, ContentValues values) {
-        GV.dbIsBusy = true;
         Chord chord = Chord.getInstance();
 
         String key = values.getAsString("key");
@@ -36,14 +42,13 @@ public class SimpleDhtProvider extends ContentProvider {
                     chord.getPort(), targetPort, key, value));
         }
 
-        GV.dbIsBusy = false;
         return uri;
     }
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
         int affectedRows = 0;
-        GV.dbIsBusy = true;
+
         Chord chord = Chord.getInstance();
         String cmdPort = (selectionArgs==null) ? null : selectionArgs[0];
 
@@ -80,9 +85,6 @@ public class SimpleDhtProvider extends ContentProvider {
                 }
             }
 
-
-
-            GV.dbIsBusy = false;
             return affectedRows;
         }
 
@@ -98,7 +100,6 @@ public class SimpleDhtProvider extends ContentProvider {
                     chord.getPort(), targetPort, selection, null));
         }
 
-        GV.dbIsBusy = false;
         return affectedRows;
     }
 
@@ -107,14 +108,12 @@ public class SimpleDhtProvider extends ContentProvider {
     public Cursor query(Uri uri, String[] projection, String selection,
                         String[] selectionArgs, String sortOrder) {
         Cursor c = null;
-        GV.dbIsBusy = true;
         Chord chord = Chord.getInstance();
         String cmdPort = (selectionArgs==null) ? null : selectionArgs[0];
 
         if (selection.equals("@")) {
             // query all on local
             c = this.queryAll();
-            GV.dbIsBusy = false;
             return c;
         }
 
@@ -125,7 +124,7 @@ public class SimpleDhtProvider extends ContentProvider {
                 // local command
                 if ((chord.getSuccPort() != null)) {
                     GV.resultAllMap.clear();
-                    GV.resultAllMap = Utils.cursorToHashMap(c);
+                    GV.resultAllMap = this.cursorToHashMap(c);
 
                     // 1. tell succ nodes
                     GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ALL,
@@ -136,13 +135,13 @@ public class SimpleDhtProvider extends ContentProvider {
                     while (GV.dbIsWaiting); // Just blocked anb wait
 
                     // 3. combine all the result
-                    c = Utils.makeCursor(GV.resultAllMap);
+                    c = this.makeCursor(GV.resultAllMap);
                     GV.resultAllMap.clear();
                 }
 
             } else {
                 // other node command
-                for (Map.Entry entry: Utils.cursorToHashMap(c).entrySet()) {
+                for (Map.Entry entry: this.cursorToHashMap(c).entrySet()) {
                     GV.msgSendQueue.offer(new Message(Message.TYPE.RESULT_ALL,
                             cmdPort, cmdPort, entry.getKey().toString(), entry.getValue().toString()));
                 }
@@ -163,7 +162,6 @@ public class SimpleDhtProvider extends ContentProvider {
 
             }
 
-            GV.dbIsBusy = false;
             return c;
         }
 
@@ -199,12 +197,11 @@ public class SimpleDhtProvider extends ContentProvider {
                         chord.getPort(), targetPort, selection, null));
                 // wait for one node result
                 while (GV.resultOneMap.isEmpty()); // Just blocked anb wait
-                c = Utils.makeCursor(GV.resultOneMap);
+                c = this.makeCursor(GV.resultOneMap);
                 GV.resultOneMap.clear();
             }
         }
 
-        GV.dbIsBusy = false;
         return c;
     }
 
@@ -270,6 +267,32 @@ public class SimpleDhtProvider extends ContentProvider {
         Log.v("COUNT", c.getCount() + "");
         c.close();
     }
+
+    private Cursor makeCursor(HashMap<String, String> kvMap) {
+        String[] attributes = {"_id", "key", "value"};
+        MatrixCursor mCursor = new MatrixCursor(attributes);
+        for (Map.Entry entry: kvMap.entrySet()) {
+            mCursor.addRow(new Object[] {
+                    R.drawable.ic_launcher, entry.getKey(), entry.getValue()});
+        }
+        return mCursor;
+    }
+
+    private HashMap<String, String> cursorToHashMap(Cursor c) {
+        HashMap<String, String> map = new HashMap<String, String>();
+
+        c.moveToFirst();
+        while (!c.isAfterLast()) {
+            String k = c.getString(c.getColumnIndex("key"));
+            String v = c.getString(c.getColumnIndex("value"));
+            map.put(k, v);
+            c.moveToNext();
+        }
+        c.close();
+
+        return map;
+    }
+
 
     // Other basic functions
     @Override

@@ -5,6 +5,11 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.util.Log;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Formatter;
+
 /*
  * Reference:
  * - Android Dev Docs:
@@ -26,17 +31,14 @@ public class Chord {
     private String predPort;
     private String predID;
     public FingerTable fingerTable;
+    private ArrayList<String> portRecords;
 
     private Chord() {
-        this.predPort = null;
         this.port = GV.MY_PORT;
-        this.succPort = null;
-
-        this.predID = null;
-        this.id = GV.MY_NID;
-        this.succID = null;
-
-        this.logInfo();
+        this.id = this.genHash(GV.MY_PORT);
+        this.portRecords = new ArrayList<String>();
+        this.portRecords.add(this.port);
+        this.logInfo(null, null);
         this.fingerTable = new FingerTable(this.id, this.port, FINGER_TABLE_SIZE);
     }
 
@@ -50,15 +52,17 @@ public class Chord {
     public String getSuccPort() {return this.succPort;}
 
     public String lookup(String key) {
-        String kid = Utils.genHash(key);
+        String kid = this.genHash(key);
 
         // Single node: succNID = predNID = null;
-        if (this.succID == null)
+        if (this.succID == null) {
             return this.port;
+        }
 
         // Local
-        if (Utils.inInterval(kid, this.predID, this.id))
+        if (this.inInterval(kid, this.predID, this.id)) {
             return this.port;
+        }
 
         // Two nodes: succNID=predNID;
         if (this.succID.equals(this.predID)) {
@@ -80,20 +84,15 @@ public class Chord {
         // 3. send insert to succ
     }
 
-    public void getJoin(String joinNPort) {
-        this.join(joinNPort, false);
+    public void getJoin(String joinPort) {
+        this.updateFingerTable(joinPort);
+        if (!joinPort.equals(this.port)) this.join(joinPort, false);
+        GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, this.port));
     }
 
-    public void getNotify(String joinNPort) {
-        this.join(joinNPort, true);
-    }
-
-    public void updateFingerTable(String joinPort) {
-        if (!GV.knownNodes.contains(joinPort)) {
-            GV.knownNodes.add(joinPort);
-            this.fingerTable.updateFingerTable(Utils.genHash(joinPort), joinPort);
-        }
-        // <TBD>: if the size of record is big, remove some
+    public void getNotify(String joinPort ) {
+        this.updateFingerTable(joinPort);
+        if (!joinPort.equals(this.port)) this.join(joinPort, true);
     }
 
     private void join(String joinPort, boolean isNotify) {
@@ -104,10 +103,10 @@ public class Chord {
 
         String prevSuccPort = this.succPort;
         String prevPredPort = this.predPort;
-        String joinID = Utils.genHash(joinPort);
+        String joinID = this.genHash(joinPort);
 
         // Handle join request
-        if (this.succID == null) {
+        if (prevSuccPort == null) {
             // Single node, [~, id, ~]
             this.succPort = joinPort;
             this.predPort = joinPort;
@@ -115,76 +114,133 @@ public class Chord {
             this.predID = joinID;
 
         } else {
-            // Two nodes
-            if (this.succID.equals(this.predID)) {
-                if (Utils.inInterval(joinID, this.id, this.succID)) {
-                    // location [id, ~, succID]
+            // Two nodes, [id, ~, succID/predID, ~, id]
+            if (prevSuccPort.equals(prevPredPort)) {
+
+                if (this.inInterval(joinID, this.id, this.succID)) {
+                    // [id, ~, succID/predID]
                     this.succPort = joinPort;
                     this.succID = joinID;
 
                 } else {
-                    // location [predID, ~, id]
+                    // [succID/predID, ~, id]
                     this.predPort = joinPort;
                     this.predID = joinID;
                 }
 
-            } else {
-                // Three or more nodes
-                if (Utils.inInterval(joinID, this.predID, this.succID)) {
-                    // location [predID, ~, id, ~ succID]
-                    if (joinID.compareTo(this.id) > 0) {
-                        // location [id, joinID, succID]
-                        this.succPort = joinPort;
-                        this.succID = joinID;
+            } else { // Three or more nodes [?, predID, ~, id, ~ succID, ?]
 
-                    } else {
-                        // location [predID, ~, id]
-                        this.predPort = joinPort;
-                        this.predID = joinID;
-                    }
+                if (this.inInterval(joinID, this.id, this.succID)) {
+                    // location [predID, id, ~, succID]
+                    this.succPort = joinPort;
+                    this.succID = joinID;
+
+                } else if(this.inInterval(joinID, this.predID, this.id)) {
+                    // location [predID, ~, id]
+                    this.predPort = joinPort;
+                    this.predID = joinID;
 
                 } else {
                     // location [~, predID, id, succID, ~]
-                    if (!isNotify) GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN, joinPort, this.getSuccPort(), joinPort));
+                    if (!isNotify)
+                        GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN, joinPort, this.getSuccPort(), joinPort));
                 }
             }
-
-            // Update finger table
-            this.updateFingerTable(joinPort);
-
-            // Tell node that I receive join request and notify the related node
-            if (!isNotify)
-                this.sendNotify(prevSuccPort, prevPredPort, joinPort);
-
-            // stabilize when have new succ node
-            if (!prevSuccPort.equals(this.succPort))
-                this.stabilize();
         }
 
+        // Tell node that I receive join request and notify the related node
+        if (!isNotify) this.sendNotify(prevSuccPort, prevPredPort, joinPort);
+
+        // stabilize when have new succ node
+        // if (prevSuccPort == null) this.stabilize();
+        // else if (!prevSuccPort.equals(this.succPort)) this.stabilize();
+
+        // Update UI
+        this.logInfo(prevSuccPort, prevPredPort);
     }
 
     private void sendNotify(String prevSuccPort, String prevPredPort, String joinPort) {
         // tell joinPort this node received join request
-        GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, this.port));
+        if (prevSuccPort != null) {
 
-        // succPort changed
-        if (!prevSuccPort.equals(this.succPort)) {
-            GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, prevSuccPort, joinPort));
-            GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, prevSuccPort));
+            if (!prevSuccPort.equals(this.succPort)) {
+                // succPort changed
+                this.logInfo(prevSuccPort, prevPredPort);
+                GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, prevSuccPort, joinPort));
+                GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, prevSuccPort));
+            }
+
+            if (!prevPredPort.equals(this.predPort)) {
+                // predPort changed
+                this.logInfo(prevSuccPort, prevPredPort);
+                GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, prevPredPort, joinPort));
+                GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, prevPredPort));
+            }
+
         }
-
-        // predPort changed
-        if (!prevPredPort.equals(this.predPort)) {
-            GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, prevPredPort, joinPort));
-            GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, prevPredPort));
-        }
-
     }
 
+    public void updateFingerTable(String joinPort) {
+        if (!this.portRecords.contains(joinPort)) {
+            this.portRecords.add(joinPort);
+            this.fingerTable.updateFingerTable(this.genHash(joinPort), joinPort);
+        }
+        // <TBD>: if the size of record is big, remove some
+    }
+
+    private String genHash(String input) {
+        Formatter formatter = new Formatter();
+        byte[] sha1Hash;
+        try {
+            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+            sha1Hash = sha1.digest(input.getBytes());
+            for (byte b : sha1Hash) {
+                formatter.format("%02x", b);
+            }
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(TAG, "GEN HASH ERR" );
+            e.printStackTrace();
+        }
+        return formatter.toString();
+    }
+
+    private boolean inInterval(String id, String fromID, String toID) {
+        if (toID.compareTo(fromID) > 0) {
+            if ((id.compareTo(fromID) >= 0) && (id.compareTo(toID) < 0))
+                return true;
+            else
+                return false;
+        } else {
+            // fromID.compareTo(toID) > 0
+            if ((id.compareTo(toID) < 0) || (id.compareTo(fromID) >= 0))
+                return true;
+            else
+                return false;
+        }
+    }
+
+    private void logInfo(String prevSuccPort, String prevPredPort) {
+        if (prevSuccPort == null)
+            Log.e(TAG,"----- ----- ----- ----- -----\n" +
+                    "null=>"+ this.predPort + " ~ " + this.port + " ~ null=>" + this.succPort +
+                    "\n----- ----- ----- ----- -----");
+        else {
+            if (!prevSuccPort.equals(this.succPort))
+                Log.e(TAG, "----- ----- ----- ----- -----\n" +
+                        this.predPort + " ~ " + this.port + " ~ " + this.succPort + "(" + prevSuccPort +
+                        ")\n----- ----- ----- ----- -----");
+            if (!prevPredPort.equals(this.predPort))
+                Log.e(TAG,"----- ----- ----- ----- -----\n(" +
+                        prevPredPort + ")" + this.predPort + " ~  " + this.port + " ~ " + this.succPort +
+                        "\n----- ----- ----- ----- -----");
+        }
+    }
+
+    /*
     private void stabilize() {
         // TODO: when get new succ node
-        Log.e(TAG, "STABLIZING.");
-        /*
+        Log.d(TAG, "STABLIZING.");
+
         // 1. Query local all
         Cursor c = GV.dbCR.query(GV.dbUri, null, "@", null, null);
         // 2. Send specific kv pairs to succ
@@ -205,13 +261,7 @@ public class Chord {
             }
         }
         c.close();
-        */
     }
-
-    private void logInfo() {
-        Log.d(TAG, "PRED: " + this.predPort + "-" + this.predID + "\n" +
-                "NODE: " + this.port + "-" + this.id + "\n" +
-                "SUCC: " + this.succPort + "-" + this.succID);
-    }
+    */
 
 }

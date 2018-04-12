@@ -41,8 +41,8 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
     @Override
     protected Void doInBackground(String... params) {
         String msgToSend = params[0];
-        String targetPort = params[1];
-        Integer remotePort = Integer.parseInt(targetPort) * 2;
+        String tgtPort = params[1];
+        Integer remotePort = Integer.parseInt(tgtPort) * 2;
 
         boolean connFlag = false;
         try {
@@ -54,7 +54,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
             if (socket.isConnected()) {
                 Log.v(TAG, "CONNECTED SERVER: " + socket.getRemoteSocketAddress());
                 socket.setSendBufferSize(8192); // Send Buff Default 8192
-                socket.setSoTimeout(500); // Response Timeout
+                socket.setSoTimeout(300); // Response Timeout
 
                 InputStream in = socket.getInputStream();
                 OutputStream out = socket.getOutputStream();
@@ -92,7 +92,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
             Log.e(TAG, "ClientTask Exception");
         } finally {
             if (!connFlag)
-                Log.e(TAG, "DISCONN DEVICE: " + targetPort);
+                Log.e(TAG, "DISCONN DEVICE: " + tgtPort);
         }
         return null;
     }

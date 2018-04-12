@@ -24,7 +24,7 @@ public class FingerTable {
     public String lookupFingerTable(String kID) {
         if (this.inFingerTable(kID)) {
             for (int i=ftSize-1; i>0; i--) {
-                if (Utils.inInterval(kID,
+                if (this.inInterval(kID,
                         this.fingers.get(i-1).getStartID(),
                         this.fingers.get(i).getStartID())) {
                     // if there is null port in this interval, find the closest succ port
@@ -49,7 +49,7 @@ public class FingerTable {
             if (this.inFingerTable(nID)) {
                 // [fingers[0].startID ~ nID ~ finger[15].startID]
                 for (int i=ftSize-1; i>0; i--) {
-                    if (Utils.inInterval(nID,
+                    if (this.inInterval(nID,
                             this.fingers.get(i-1).getStartID(),
                             this.fingers.get(i).getStartID())) {
                         this.fingers.get(i-1).updateFinger(nID, nPort);
@@ -69,7 +69,7 @@ public class FingerTable {
     }
 
     public boolean inFingerTable(String id) {
-        if (Utils.inInterval(id, this.nID, this.fingers.get(this.ftSize-1).startID))
+        if (this.inInterval(id, this.nID, this.fingers.get(this.ftSize-1).startID))
             return true;
         return false;
     }
@@ -112,6 +112,22 @@ public class FingerTable {
         c = Character.toLowerCase(c);
         byte b = (byte) "0123456789abcdef".indexOf(c);
         return b;
+    }
+
+    private boolean inInterval(String id, String fromID, String toID) {
+
+        if (toID.compareTo(fromID) > 0) {
+            if ((id.compareTo(fromID) > 0) && (id.compareTo(toID) < 0))
+                return true;
+            else
+                return false;
+
+        } else {
+            if ((id.compareTo(fromID) < 0) && (id.compareTo(toID) > 0))
+                return false;
+            else
+                return true;
+        }
     }
 
     private void logInfo() {
@@ -157,7 +173,6 @@ public class FingerTable {
                         this.setSuccPort(succPort);
                     }
                 }
-
 
             } else {
                 this.succID = succID;
