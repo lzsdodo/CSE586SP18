@@ -29,17 +29,16 @@ public class SimpleDhtProvider extends ContentProvider {
 
         String key = values.getAsString("key");
         String value = values.getAsString("value");
+        String tgtPort = chord.lookup(key);
 
-        String targetPort = Chord.getInstance().lookup(key);
-
-        if(targetPort.equals(chord.getPort())) {
+        if(tgtPort.equals(chord.getPort())) {
             // insert one on local
             this.insertOne(values);
 
         } else {
             // tell the specific node to insert
             GV.msgSendQueue.offer(new Message(Message.TYPE.INSERT_ONE,
-                    chord.getPort(), targetPort, key, value));
+                    chord.getPort(), tgtPort, key, value));
         }
 
         return uri;

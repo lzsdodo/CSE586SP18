@@ -77,11 +77,6 @@ public class SimpleDhtActivity extends Activity {
             }
         });
 
-        // Chord
-        // GV.PORTS.remove(GV.MY_PORT);
-        // Log.e("INIT", "PORTS: " + GV.PORTS);
-        Chord chord = Chord.getInstance();
-
         // Task Thread
         new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);

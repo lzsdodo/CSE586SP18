@@ -25,17 +25,15 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
                     if (System.currentTimeMillis() - lastTime > 1000) {
                         lastTime = System.currentTimeMillis();
                         if (!GV.MY_PORT.equals("5554"))
-                            GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN, chord.getPort(), "5554", chord.getPort()));
-//                        int random = (int) (Math.random()*4); // [0, 1, 2, 3]
-//                        String tgtPort = GV.PORTS.get(random);
-//                        GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN, chord.getPort(), tgtPort, chord.getPort()));
+                            GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN,
+                                    chord.getPort(), "5554", chord.getPort()));
                     }
                 }
 
                 // 1. Handle Receive Message
                 if (!(GV.msgRecvQueue.peek() == null)) {
                     Message msg = GV.msgRecvQueue.poll(); // with Remove
-                    Log.e(TAG, "HANDLE RECV MSG: " + msg.toString());
+                    Log.e("HANDLE RECV MSG", "" + msg.toString());
 
                     String cmdPort = msg.getCmdPort();
                     chord.updateFingerTable(cmdPort);
@@ -52,34 +50,42 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
                             break;
 
                         case INSERT_ONE:
+                            Log.e("HANDLE INSERT ONE", msg.getMsgBody());
                             this.handleInsertOne(msg.getMsgKey(), msg.getMsgValue());
                             break;
 
                         case DELETE_ONE:
+                            Log.e("HANDLE DELETE ONE", msg.toString());
                             GV.dbCR.delete(GV.dbUri, msg.getMsgKey(), null);
                             break;
 
                         case DELETE_ALL:
+                            Log.e("HANDLE DELETE ALL", msg.toString());
                             GV.dbCR.delete(GV.dbUri, "*", new String[] {cmdPort});
                             break;
 
                         case QUERY_ONE:
+                            Log.e("HANDLE QUERY ONE", msg.toString());
                             GV.dbCR.query(GV.dbUri, null, msg.getMsgKey(), new String[] {cmdPort}, null);
                             break;
 
                         case QUERY_ALL:
+                            Log.e("HANDLE QUERY ALL", msg.toString());
                             GV.dbCR.query(GV.dbUri, null, "*", new String[] {cmdPort}, null);
                             break;
 
                         case QUERY_COMLETED:
+                            Log.e("HANDLE QUERY COMPLETED", msg.toString());
                             GV.dbIsWaiting = false;
                             break;
 
                         case RESULT_ONE:
+                            Log.e("HANDLE RESULT ONE", msg.getMsgBody());
                             GV.resultOneMap.put(msg.getMsgKey(), msg.getMsgValue());
                             break;
 
                         case RESULT_ALL:
+                            Log.e("HANDLE RESULT ALL", msg.getMsgBody());
                             GV.resultAllMap.put(msg.getMsgKey(), msg.getMsgValue());
                             break;
 
@@ -91,6 +97,7 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
                 // 2. Handle Send Message
                 if (!(GV.msgSendQueue.peek() == null)) {
                     Message msg = GV.msgSendQueue.poll(); // with Remove
+                    Log.e("HANDLE SEND MSG", "" + msg.toString());
                     new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg.toString(), msg.getTgtPort());
                 }
 
