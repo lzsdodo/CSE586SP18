@@ -50,6 +50,7 @@ public class Chord {
 
     public String getPort() {return this.port;}
     public String getSuccPort() {return this.succPort;}
+    public String getPredPort() {return this.predPort;}
 
     public String lookup(String key) {
         String kid = this.genHash(key);

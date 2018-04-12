@@ -80,7 +80,10 @@ public class SimpleDhtActivity extends Activity {
                 super.handleMessage(msg);
                 switch (msg.what) {
                     case UI:
-                        mTextView.append(msg.obj+"\n");
+                        if (msg.obj.equals("CLEAN_UI"))
+                            mTextView.setText("");
+                        else
+                            mTextView.append(msg.obj+"\n");
                         break;
                     default: break;
                 }

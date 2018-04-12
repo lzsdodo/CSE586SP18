@@ -1,7 +1,6 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
 import android.os.AsyncTask;
-import android.os.Bundle;
 import android.os.Message;
 import android.util.Log;
 
@@ -101,7 +100,6 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
         uiMsg.obj = msg.toString();
         uiMsg.what = SimpleDhtActivity.UI;
         SimpleDhtActivity.uiHandler.sendMessage(uiMsg);
-        // mTextView.append(recvStr+"\n");
 
         /*
         String printStr = msg.getMsgID() + "-" + msg.getMsgType() + ": "

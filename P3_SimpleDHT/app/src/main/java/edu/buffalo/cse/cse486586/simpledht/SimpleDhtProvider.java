@@ -24,7 +24,7 @@ public class SimpleDhtProvider extends ContentProvider {
     // MAIN API, with logic control in these functions
 
     @Override
-    public Uri insert(Uri uri, ContentValues values) {
+    synchronized public Uri insert(Uri uri, ContentValues values) {
         Chord chord = Chord.getInstance();
 
         String key = values.getAsString("key");
@@ -45,58 +45,54 @@ public class SimpleDhtProvider extends ContentProvider {
     }
 
     @Override
-    public int delete(Uri uri, String selection, String[] selectionArgs) {
+    synchronized public int delete(Uri uri, String selection, String[] selectionArgs) {
         int affectedRows = 0;
 
         Chord chord = Chord.getInstance();
-        String cmdPort = (selectionArgs==null) ? null : selectionArgs[0];
+        String cmdPort = (selectionArgs == null) ? null : selectionArgs[0];
 
         if (selection.equals("@")) {
             // Delete all on local
-            affectedRows = this.deleteAll();
+            return this.deleteAll();
         }
 
         if (selection.equals("*")) {
             affectedRows = this.deleteAll();
 
-            if (cmdPort==null) {
+            if (cmdPort == null) {
                 // local command
-
                 if (chord.getSuccPort() != null) {
                     // Not single node
                     // Delete all on local and tell to succ node
                     GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.DELETE_ALL,
-                            chord.getPort(), chord.getSuccPort(), "*", null));
+                            chord.getPort(), chord.getSuccPort(), "*", "*"));
                 }
 
             } else {
                 // other node command
                 if (cmdPort.equals(chord.getSuccPort())) {
                     // DONE: this node is the pred node of the cmd node
-                    Log.d("DELETE ALL", "Command port: " + cmdPort + "\n" +
-                            "This port: " + GV.MY_PORT + "\n" +
-                            "Succ port: " + chord.getSuccPort());
+                    Log.e("DELETE ALL", "DONE");
                 } else {
                     // GO ON, Send to next node
                     GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.DELETE_ALL,
-                            cmdPort, chord.getSuccPort(), "*", null));
-                    Log.d("DELETE ALL", "IN LOOP.");
+                            cmdPort, chord.getSuccPort(), "*", "*"));
+                    Log.e("DELETE ALL", "IN LOOP.");
                 }
             }
-
             return affectedRows;
         }
 
         // not "@" or "*"
         String targetPort = chord.lookup(selection);
 
-        if(targetPort.equals(chord.getPort())) {
+        if (targetPort.equals(chord.getPort())) {
             // delete one on local
             affectedRows = this.deleteOne(selection);
         } else {
             // tell the specific node to delete
             GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.DELETE_ONE,
-                    chord.getPort(), targetPort, selection, null));
+                    cmdPort, targetPort, selection, null));
         }
 
         return affectedRows;
@@ -109,58 +105,66 @@ public class SimpleDhtProvider extends ContentProvider {
         Cursor c = null;
         Chord chord = Chord.getInstance();
         String cmdPort = (selectionArgs==null) ? null : selectionArgs[0];
+        Log.e("QUERY", "CMD PORT: " + cmdPort);
 
         if (selection.equals("@")) {
             // query all on local
             c = this.queryAll();
+            c.moveToFirst();
             return c;
         }
 
         if (selection.equals("*")) {
             c = this.queryAll();
+            c.moveToFirst();
 
             if (cmdPort == null) {
                 // local command
+
                 if ((chord.getSuccPort() != null)) {
-                    GV.resultAllMap.clear();
-                    GV.resultAllMap = this.cursorToHashMap(c);
+                    synchronized(GV.lockAll) {
+                        GV.resultAllMap.clear();
+                        GV.resultAllMap = this.cursorToHashMap(c);
 
-                    // 1. tell succ nodes
-                    GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.QUERY_ALL,
-                            chord.getPort(), chord.getSuccPort(), "*", null));
+                        // 1. tell succ nodes
+                        GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.QUERY_ALL,
+                                chord.getPort(), chord.getSuccPort(), "*", "*"));
 
-                    // 2. wait for all nodes result
-                    GV.dbIsWaiting = true;
-                    while (GV.dbIsWaiting); // Just blocked anb wait
+                        // 2. wait for all nodes result
+                        try {
+                            Log.e("LOCK ALL", "WAITING FOR ALL RESULT");
+                            GV.lockAll.wait();
+                            Log.e("LOCK ALL", "END LOCK ALL");
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
 
-                    // 3. combine all the result
-                    c = this.makeCursor(GV.resultAllMap);
-                    GV.resultAllMap.clear();
+                        // 3. combine all the result
+                        c = this.makeCursor(GV.resultAllMap);
+                        GV.resultAllMap.clear();
+                    }
                 }
 
             } else {
                 // other node command
                 for (Map.Entry entry: this.cursorToHashMap(c).entrySet()) {
                     GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.RESULT_ALL,
-                            cmdPort, cmdPort, entry.getKey().toString(), entry.getValue().toString()));
+                            chord.getPort(), cmdPort, entry.getKey().toString(), entry.getValue().toString()));
                 }
 
                 if (cmdPort.equals(chord.getSuccPort())) {
                     // DONE: this node is the pred node of the cmd node
                     GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.QUERY_COMLETED,
-                            cmdPort, cmdPort, "*", null));
+                            chord.getPort(), cmdPort, "*", "*"));
                     Log.d("QUERY ALL", "Command port: " + cmdPort + "\n" +
-                            "This port: " + GV.MY_PORT + "\n" +
-                            "Succ port: " + chord.getSuccPort());
+                            "This port: " + chord.getPort() + "\n" + "Succ port: " + chord.getSuccPort());
                 } else {
                     // GO ON, Send to next node
                     GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.QUERY_ALL,
-                            cmdPort, chord.getSuccPort(), "*", null));
+                            cmdPort, chord.getSuccPort(), "*", "*"));
                     Log.d("QUERY ALL", "IN LOOP.");
                 }
-
             }
-
             return c;
         }
 
@@ -170,14 +174,14 @@ public class SimpleDhtProvider extends ContentProvider {
         if(targetPort.equals(chord.getPort())) {
             // locate at local
             c = this.queryOne(selection);
-
+            c.moveToFirst();
             if (cmdPort != null) {
                 // other node commands
                 c.moveToFirst();
                 String resKey = c.getString(c.getColumnIndex("key"));
                 String resValue = c.getString(c.getColumnIndex("value"));
                 GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.RESULT_ONE,
-                        cmdPort, cmdPort, resKey, resValue));
+                        chord.getPort(), cmdPort, resKey, resValue));
             }
 
         } else {
@@ -189,15 +193,26 @@ public class SimpleDhtProvider extends ContentProvider {
                         cmdPort, targetPort, selection, null));
 
             } else {
-                // local command
-                GV.resultOneMap.clear();
-                // tell specific node
-                GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.QUERY_ONE,
-                        chord.getPort(), targetPort, selection, null));
-                // wait for one node result
-                while (GV.resultOneMap.isEmpty()); // Just blocked anb wait
-                c = this.makeCursor(GV.resultOneMap);
-                GV.resultOneMap.clear();
+                synchronized(GV.lockOne) {
+                    // local command
+                    GV.resultOneMap.clear();
+                    // tell specific node
+                    GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.QUERY_ONE,
+                            chord.getPort(), targetPort, selection, null));
+
+                    // wait for one node result
+                    try {
+                        Log.e("LOCK ONE", "WAITING FOR RESULT");
+                        GV.lockOne.wait();
+                        Log.e("LOCK ONE", "END LOCK ONE");
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    // get result and deal with it
+                    c = this.makeCursor(GV.resultOneMap);
+                    GV.resultOneMap.clear();
+                    c.moveToFirst();
+                }
             }
         }
 
@@ -255,7 +270,7 @@ public class SimpleDhtProvider extends ContentProvider {
         int affectedRows = this.dbHelper.getWritableDatabase().delete(
                 this.dbHelper.TABLE_NAME, null, null);
         Log.v("DELETE ALL", affectedRows + " ROWS.");
-        this.countRows();
+        // this.countRows();
         return affectedRows;
     }
 

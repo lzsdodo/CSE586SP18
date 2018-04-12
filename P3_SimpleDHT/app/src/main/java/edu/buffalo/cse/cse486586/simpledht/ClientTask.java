@@ -65,9 +65,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
 
                 out.close();
                 in.close();
-                while (!socket.isClosed()) {
-                    socket.close();
-                }
+                // while (!socket.isClosed()) { socket.close(); }
                 connFlag = true;
                 Log.v(TAG, "CLIENTSOCKET CLOSED.");
             }

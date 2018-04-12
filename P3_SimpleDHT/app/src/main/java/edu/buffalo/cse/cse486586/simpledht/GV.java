@@ -14,7 +14,9 @@ class GV {
     static final String URI = "edu.buffalo.cse.cse486586.simpledht.provider";
 
     static Uri dbUri = null;
-    static boolean dbIsWaiting = false;
+
+    static final Object lockOne = new Object();
+    static final Object lockAll = new Object();
 
     static final int SERVER_PORT = 10000;
     static final String REMOTE_ADDR = "10.0.2.2";
