@@ -23,6 +23,8 @@ import android.widget.TextView;
 
 public class SimpleDhtActivity extends Activity {
 
+    static final int UI = 0x00;
+
     static Handler uiHandler;
 
     public TextView mTextView;
@@ -77,8 +79,8 @@ public class SimpleDhtActivity extends Activity {
             public void handleMessage(Message msg) {
                 super.handleMessage(msg);
                 switch (msg.what) {
-                    case 0x00:
-                        mTextView.append(msg.getData().getString("ui") + "\n");
+                    case UI:
+                        mTextView.append(msg.obj+"\n");
                         break;
                     default: break;
                 }

@@ -98,10 +98,8 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
 
         // Print it to UI
         Message uiMsg = new Message();
-        Bundle bundle = new Bundle();
-        bundle.putString("ui", msg.toString());
-        uiMsg.setData(bundle);
-        uiMsg.what = 0x00;
+        uiMsg.obj = msg.toString();
+        uiMsg.what = SimpleDhtActivity.UI;
         SimpleDhtActivity.uiHandler.sendMessage(uiMsg);
         // mTextView.append(recvStr+"\n");
 

@@ -100,7 +100,7 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 
                 // 2. Handle Send Message
                 if (!(GV.msgSendQueue.peek() == null)) {
-                    if (System.currentTimeMillis() - this.lastTime > 50) {
+                    if (System.currentTimeMillis() - this.lastTime > 100) {
                         this.lastTime = System.currentTimeMillis();
                         NewMessage msg = GV.msgSendQueue.poll(); // with Remove
                         Log.e("HANDLE SEND MSG", "" + msg.toString());
