@@ -49,7 +49,6 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
             SocketAddress socketAddr = new InetSocketAddress(GV.REMOTE_ADDR, remotePort);
             Socket socket = new Socket();
             socket.connect(socketAddr); // Connect Timeout
-            // socket.setOOBInline(true); // For sendUrgentData
 
             if (socket.isConnected()) {
                 Log.v(TAG, "CONNECTED SERVER: " + socket.getRemoteSocketAddress());
@@ -65,7 +64,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
 
                 out.close();
                 in.close();
-                // while (!socket.isClosed()) { socket.close(); }
+                while (!socket.isClosed()) { socket.close(); }
                 connFlag = true;
                 Log.v(TAG, "CLIENTSOCKET CLOSED.");
             }

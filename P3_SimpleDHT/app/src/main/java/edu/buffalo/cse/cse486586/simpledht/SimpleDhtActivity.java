@@ -24,11 +24,11 @@ import android.widget.TextView;
 public class SimpleDhtActivity extends Activity {
 
     static final int UI = 0x00;
-
+    static final int CLEAN = 0x01;
     static Handler uiHandler;
 
     public TextView mTextView;
-    private ContentResolver mCR;
+    public ContentResolver mCR;
 
     @SuppressLint("HandlerLeak")
     @Override
@@ -80,11 +80,9 @@ public class SimpleDhtActivity extends Activity {
                 super.handleMessage(msg);
                 switch (msg.what) {
                     case UI:
-                        if (msg.obj.equals("CLEAN_UI"))
-                            mTextView.setText("");
-                        else
-                            mTextView.append(msg.obj+"\n");
-                        break;
+                        mTextView.append(msg.obj + "\n"); break;
+                    case CLEAN:
+                        mTextView.setText("Update UI\n"); break;
                     default: break;
                 }
             }

@@ -29,14 +29,6 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
         while (true) {
             try {
                 // 0: Build the chord ring at first
-                if (System.currentTimeMillis() - this.lastTime > 10000) {
-                    this.lastTime = System.currentTimeMillis();
-                    Message uiMsg = new Message();
-                    uiMsg.obj = "CLEAN_UI";
-                    uiMsg.what = SimpleDhtActivity.UI;
-                    SimpleDhtActivity.uiHandler.sendMessage(uiMsg);
-                }
-
                 if ((this.chord.getSuccPort() == null) && (this.joinTimes<2)) {
                     if (System.currentTimeMillis() - this.lastTime > 1000) {
                         this.lastTime = System.currentTimeMillis();
@@ -73,7 +65,7 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 
                         case DELETE_ONE:
                             Log.e("HANDLE DELETE ONE", msg.toString());
-                            this.qCR.delete(GV.dbUri, msg.getMsgKey(), null);
+                            this.qCR.delete(GV.dbUri, msg.getMsgKey(), new String[] {cmdPort});
                             break;
 
                         case DELETE_ALL:

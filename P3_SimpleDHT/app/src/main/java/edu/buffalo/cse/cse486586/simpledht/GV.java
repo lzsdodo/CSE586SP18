@@ -10,7 +10,6 @@ import java.util.Queue;
 
 
 class GV {
-
     static final String URI = "edu.buffalo.cse.cse486586.simpledht.provider";
 
     static Uri dbUri = null;

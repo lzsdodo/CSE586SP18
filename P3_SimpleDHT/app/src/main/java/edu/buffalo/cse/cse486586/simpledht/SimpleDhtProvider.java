@@ -40,7 +40,6 @@ public class SimpleDhtProvider extends ContentProvider {
             GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.INSERT_ONE,
                     chord.getPort(), tgtPort, key, value));
         }
-
         return uri;
     }
 
@@ -91,10 +90,13 @@ public class SimpleDhtProvider extends ContentProvider {
             affectedRows = this.deleteOne(selection);
         } else {
             // tell the specific node to delete
-            GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.DELETE_ONE,
-                    cmdPort, targetPort, selection, null));
+            if (cmdPort == null)
+                GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.DELETE_ONE,
+                        chord.getPort(), targetPort, selection, null));
+            else
+                GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.DELETE_ONE,
+                        cmdPort, targetPort, selection, null));
         }
-
         return affectedRows;
     }
 

@@ -21,9 +21,13 @@ import java.net.UnknownHostException;
 public class ServerTask extends AsyncTask<Void, String, Void> {
 
     static final String TAG = "SERVER";
+    static int msgCounter = 0;
 
     private ServerSocket serverSocket = null;
     private Socket socket = null;
+    private OutputStream out = null;
+    private InputStream in = null;
+    private BufferedReader br = null;
 
     @Override
     protected Void doInBackground(Void... voids) {
@@ -48,17 +52,17 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
                     this.socket.setReceiveBufferSize(8192); // Receive Buffer Default 8192
                     this.socket.setSoTimeout(300); // Response Timeout
 
-                    OutputStream out = this.socket.getOutputStream();
-                    InputStream in = this.socket.getInputStream();
-                    BufferedReader br = new BufferedReader(new InputStreamReader(in));
-                    String msg = br.readLine();
+                    this.out = this.socket.getOutputStream();
+                    this.in = this.socket.getInputStream();
+                    this.br = new BufferedReader(new InputStreamReader(in));
 
-                    publishProgress(msg);
+                    publishProgress(this.br.readLine());
+                    msgCounter++;
 
-                    br.close();
-                    in.close();
-                    out.close();
-                    // this.socket.close();
+                    this.br.close();
+                    this.in.close();
+                    this.out.close();
+                    this.socket.close();
                     Log.d(TAG, "ServerSocket and IO Closed.");
                 }
             }
@@ -97,17 +101,17 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
 
         // Print it to UI
         Message uiMsg = new Message();
-        uiMsg.obj = msg.toString();
-        uiMsg.what = SimpleDhtActivity.UI;
-        SimpleDhtActivity.uiHandler.sendMessage(uiMsg);
+        if (msgCounter < 20) {
+            uiMsg.what = SimpleDhtActivity.UI;
+            uiMsg.obj = msg.toString();
+            SimpleDhtActivity.uiHandler.sendMessage(uiMsg);
+        } else {
+            msgCounter = 0;
+            uiMsg.what = SimpleDhtActivity.CLEAN;
+            uiMsg.obj = msg.toString();
+            SimpleDhtActivity.uiHandler.sendMessage(uiMsg);
+        }
 
-        /*
-        String printStr = msg.getMsgID() + "-" + msg.getMsgType() + ": "
-                + msg.getMsgContent() + "\n";
-        mTextView.append(printStr);
-        Log.v("UI", printStr);
-
-        */
     }
 
     @Override
