@@ -3,10 +3,7 @@ package edu.buffalo.cse.cse486586.simpledht;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.os.AsyncTask;
-import android.os.Message;
 import android.util.Log;
-
-import java.util.ArrayList;
 
 public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 

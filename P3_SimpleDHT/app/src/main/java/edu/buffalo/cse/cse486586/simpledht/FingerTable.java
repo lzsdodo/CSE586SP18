@@ -4,6 +4,13 @@ import android.util.Log;
 
 import java.util.ArrayList;
 
+/*
+ * Reference:
+ * - Article:
+ *      - Paper: Chord: A Scalable Peer-to-peer Lookup Service for Internet Applications
+ *      - Class Slides
+ */
+
 public class FingerTable {
 
     static final String TAG = "FINGER-TABLE";

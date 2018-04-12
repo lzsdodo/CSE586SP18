@@ -20,6 +20,25 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.TextView;
 
+/*
+  * Reference:
+ * - Android Dev Docs:
+ *      - Build Your First App: https://developer.android.com/training/basics/firstapp/index.html
+ *      - App Fundamentals: https://developer.android.com/guide/components/fundamentals.html
+ *      - Log: https://developer.android.com/reference/android/util/Log.html
+ *      - UI Overview: https://developer.android.com/guide/topics/ui/overview.html
+ *      - View: https://developer.android.com/reference/android/view/View.html
+ *      - EditText: https://developer.android.com/reference/android/widget/EditText.html
+ *      - TextView: https://developer.android.com/reference/android/widget/TextView.html
+ *      - The Activity Lifecycle: https://developer.android.com/guide/components/activities/activity-lifecycle.html
+ *      - AsyncTask: https://developer.android.com/reference/android/os/AsyncTask.html
+ *      - Handler: https://developer.android.com/reference/android/os/Handler.html
+ *      - Message: https://developer.android.com/reference/android/os/Message.html
+ *      - Button: https://developer.android.com/reference/android/widget/Button.html
+ *      - View.OnClickListener: https://developer.android.com/reference/android/view/View.OnClickListener.html
+ * - Previous Project:
+ *      - GroupMessenger 2B
+ */
 
 public class SimpleDhtActivity extends Activity {
 

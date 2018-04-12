@@ -1,8 +1,5 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
-
-import android.content.ContentValues;
-import android.database.Cursor;
 import android.util.Log;
 
 import java.security.MessageDigest;
@@ -13,10 +10,14 @@ import java.util.Formatter;
 /*
  * Reference:
  * - Android Dev Docs:
- *
+ *      - MessageDigest: https://docs.oracle.com/javase/7/docs/api/java/security/MessageDigest.html
  * - Article:
- *      Simply Singleton: https://www.javaworld.com/article/2073352/core-java/simply-singleton.html
+ *      - Paper: Chord: A Scalable Peer-to-peer Lookup Service for Internet Applications
+ *      - Simply Singleton: https://www.javaworld.com/article/2073352/core-java/simply-singleton.html
+ * - Others
+ *      - Class Slides
  */
+
 public class Chord {
 
     static final String TAG = "CHORD";
