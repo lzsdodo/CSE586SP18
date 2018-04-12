@@ -87,7 +87,7 @@ public class Chord {
     public void getJoin(String joinPort) {
         this.updateFingerTable(joinPort);
         if (!joinPort.equals(this.port)) this.join(joinPort, false);
-        GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, this.port));
+        GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.NOTIFY, this.port, joinPort, this.port));
     }
 
     public void getNotify(String joinPort ) {
@@ -143,7 +143,7 @@ public class Chord {
                 } else {
                     // location [~, predID, id, succID, ~]
                     if (!isNotify)
-                        GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN, joinPort, this.getSuccPort(), joinPort));
+                        GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.JOIN, joinPort, this.getSuccPort(), joinPort));
                 }
             }
         }
@@ -166,15 +166,15 @@ public class Chord {
             if (!prevSuccPort.equals(this.succPort)) {
                 // succPort changed
                 this.logInfo(prevSuccPort, prevPredPort);
-                GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, prevSuccPort, joinPort));
-                GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, prevSuccPort));
+                GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.NOTIFY, this.port, prevSuccPort, joinPort));
+                GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.NOTIFY, this.port, joinPort, prevSuccPort));
             }
 
             if (!prevPredPort.equals(this.predPort)) {
                 // predPort changed
                 this.logInfo(prevSuccPort, prevPredPort);
-                GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, prevPredPort, joinPort));
-                GV.msgSendQueue.offer(new Message(Message.TYPE.NOTYFY, this.port, joinPort, prevPredPort));
+                GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.NOTIFY, this.port, prevPredPort, joinPort));
+                GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.NOTIFY, this.port, joinPort, prevPredPort));
             }
 
         }

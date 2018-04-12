@@ -1,6 +1,8 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
 
+import android.annotation.SuppressLint;
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -8,6 +10,8 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
+import android.os.Handler;
+import android.os.Message;
 import android.telephony.TelephonyManager;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
@@ -16,24 +20,15 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.TextView;
 
-import org.apache.http.conn.ConnectTimeoutException;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
-
 
 public class SimpleDhtActivity extends Activity {
 
-    public TextView mTextView;
+    static Handler uiHandler;
 
+    public TextView mTextView;
+    private ContentResolver mCR;
+
+    @SuppressLint("HandlerLeak")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,7 +43,7 @@ public class SimpleDhtActivity extends Activity {
 
         // Database
         GV.dbUri = new Uri.Builder().scheme("content").authority(GV.URI).build();
-        GV.dbCR = getContentResolver();
+        this.mCR = getContentResolver();
 
         // Test Insert, Query and Delete One
         findViewById(R.id.button3).setOnClickListener(
@@ -77,9 +72,22 @@ public class SimpleDhtActivity extends Activity {
             }
         });
 
+        this.uiHandler = new Handler() {
+            @Override
+            public void handleMessage(Message msg) {
+                super.handleMessage(msg);
+                switch (msg.what) {
+                    case 0x00:
+                        mTextView.append(msg.getData().getString("ui") + "\n");
+                        break;
+                    default: break;
+                }
+            }
+        };
+
         // Task Thread
         new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
     }
 
     @Override
@@ -103,14 +111,14 @@ public class SimpleDhtActivity extends Activity {
         for (int i=0; i<30; i++) {
             cv.put("key", "key" + i);
             cv.put("value", "val" + i);
-            GV.dbCR.insert(GV.dbUri, cv);
+            this.mCR.insert(GV.dbUri, cv);
             cv.clear();
         }
     }
 
     private boolean testQuery(String key) {
         try {
-            Cursor c = GV.dbCR.query(GV.dbUri, null, key, null, null);
+            Cursor c = this.mCR.query(GV.dbUri, null, key, null, null);
 
             c.moveToFirst();
             while (!c.isAfterLast()) {
@@ -128,107 +136,11 @@ public class SimpleDhtActivity extends Activity {
 
     private boolean testDelete(String key) {
         try {
-            GV.dbCR.delete(GV.dbUri, key, null);
+            this.mCR.delete(GV.dbUri, key, null);
         } catch (Exception e) {
             return false;
         }
         return true;
     }
 
-
-    private class ServerTask extends AsyncTask<Void, String, Void> {
-
-        static final String TAG = "SERVER";
-
-        private ServerSocket serverSocket = null;
-        private Socket socket = null;
-
-        @Override
-        protected Void doInBackground(Void... voids) {
-            try {
-                this.serverSocket = new ServerSocket();
-                this.serverSocket.setReuseAddress(true);
-                this.serverSocket.bind(new InetSocketAddress(GV.SERVER_PORT));
-                this.socket = new Socket();
-                Log.e(TAG, "Create a ServerSocket listening on: " + serverSocket.getLocalSocketAddress());
-            } catch (IOException e1) {
-                Log.e(TAG, "Can't create a ServerSocket");
-                e1.printStackTrace();
-            }
-
-            try {
-                while (true) {
-                    // Receive message
-                    this.socket = this.serverSocket.accept();
-
-                    if (this.socket != null) {
-                        Log.d(TAG, "Accepted connection from " + this.socket.getRemoteSocketAddress().toString());
-                        socket.setReceiveBufferSize(8192); // Receive Buffer Default 8192
-                        socket.setSoTimeout(300); // Response Timeout
-                        // socket.setOOBInline(true); // For sendUrgentData
-
-                        OutputStream out = this.socket.getOutputStream();
-                        InputStream in = this.socket.getInputStream();
-                        BufferedReader br = new BufferedReader(new InputStreamReader(in));
-                        String msg = br.readLine();
-
-                        publishProgress(msg);
-
-                        br.close();
-                        in.close();
-                        out.close();
-                        this.socket.close();
-                        Log.d(TAG, "ServerSocket and IO Closed.");
-                    }
-                }
-
-            } catch (ConnectTimeoutException e) {
-                Log.e(TAG, "ServerTask ConnectTimeoutException");
-                e.printStackTrace();
-            } catch (SocketTimeoutException e) {
-                // Socket's soTimeout method is timeout for read/write, not for the connection
-                // Socket's IO is blocking
-                // We should close by ourselves when we catch the exception
-                Log.e(TAG, "ServerTask SocketTimeoutException");
-                e.printStackTrace();
-            } catch (UnknownHostException e) {
-                Log.e(TAG, "ServerTask UnknownHostException");
-                e.printStackTrace();
-            } catch (IOException e) {
-                Log.e(TAG, "ServerTask IOException");
-                e.printStackTrace();
-            } catch (Exception e) {
-                Log.e(TAG, "ServerTask Exception.");
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onProgressUpdate(String... strings) {
-            String recvStr = strings[0].trim();
-            Log.v(TAG, "RECV MSG: " + recvStr);
-
-            // Put it to the msg receive queue
-            Message msg = Message.parseMsg(recvStr);
-            GV.msgRecvQueue.offer(msg);
-
-            // Print it to UI
-            mTextView.append(recvStr+"\n");
-
-        /*
-        String printStr = msg.getMsgID() + "-" + msg.getMsgType() + ": "
-                + msg.getMsgContent() + "\n";
-        mTextView.append(printStr);
-        Log.v("UI", printStr);
-
-        */
-        }
-
-        @Override
-        protected void onPostExecute(Void result) {
-            Log.e("LOST SERVER", "SERVER TASK SHOULD NOT BREAK.");
-        }
-
-    }
 }

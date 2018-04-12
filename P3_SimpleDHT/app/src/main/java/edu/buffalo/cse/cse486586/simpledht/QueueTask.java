@@ -1,42 +1,46 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.os.AsyncTask;
 import android.util.Log;
 
-public class QueueTask extends AsyncTask<Void, Void, Void> {
+public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 
     static final String TAG = "QUEUE";
 
-    static Chord chord;
-    static long lastTime;
+    private ContentResolver qCR;
+    private Chord chord;
+    private long lastTime;
+
 
     @Override
-    protected Void doInBackground (Void...voids) {
+    protected Void doInBackground (ContentResolver...cr) {
         Log.d(TAG, "START QueueTask");
 
-        chord = Chord.getInstance();
-        lastTime = System.currentTimeMillis();
+        this.qCR = cr[0];
+        this.chord = Chord.getInstance();
+        this.lastTime = System.currentTimeMillis();
 
         while (true) {
             try {
                 // 0: Build the chord ring at first
-                if (chord.getSuccPort() == null) {
-                    if (System.currentTimeMillis() - lastTime > 1000) {
-                        lastTime = System.currentTimeMillis();
+                if (this.chord.getSuccPort() == null) {
+                    if (System.currentTimeMillis() - this.lastTime > 1000) {
+                        this.lastTime = System.currentTimeMillis();
                         if (!GV.MY_PORT.equals("5554"))
-                            GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN,
-                                    chord.getPort(), "5554", chord.getPort()));
+                            GV.msgSendQueue.offer(new NewMessage(NewMessage.TYPE.JOIN,
+                                    this.chord.getPort(), "5554", chord.getPort()));
                     }
                 }
 
                 // 1. Handle Receive Message
                 if (!(GV.msgRecvQueue.peek() == null)) {
-                    Message msg = GV.msgRecvQueue.poll(); // with Remove
+                    NewMessage msg = GV.msgRecvQueue.poll(); // with Remove
                     Log.e("HANDLE RECV MSG", "" + msg.toString());
 
                     String cmdPort = msg.getCmdPort();
-                    chord.updateFingerTable(cmdPort);
+                    this.chord.updateFingerTable(cmdPort);
                     
                     switch (msg.getMsgType()) {
                         case JOIN:
@@ -44,7 +48,7 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
                             chord.getJoin(msg.getMsgBody());
                             break;
 
-                        case NOTYFY:
+                        case NOTIFY:
                             Log.e(TAG, "HANDLE NOTIFY FOR: " + msg.getMsgBody());
                             chord.getNotify(msg.getMsgBody());
                             break;
@@ -56,22 +60,22 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
 
                         case DELETE_ONE:
                             Log.e("HANDLE DELETE ONE", msg.toString());
-                            GV.dbCR.delete(GV.dbUri, msg.getMsgKey(), null);
+                            this.qCR.delete(GV.dbUri, msg.getMsgKey(), null);
                             break;
 
                         case DELETE_ALL:
                             Log.e("HANDLE DELETE ALL", msg.toString());
-                            GV.dbCR.delete(GV.dbUri, "*", new String[] {cmdPort});
+                            this.qCR.delete(GV.dbUri, "*", new String[] {cmdPort});
                             break;
 
                         case QUERY_ONE:
                             Log.e("HANDLE QUERY ONE", msg.toString());
-                            GV.dbCR.query(GV.dbUri, null, msg.getMsgKey(), new String[] {cmdPort}, null);
+                            this.qCR.query(GV.dbUri, null, msg.getMsgKey(), new String[] {cmdPort}, null);
                             break;
 
                         case QUERY_ALL:
                             Log.e("HANDLE QUERY ALL", msg.toString());
-                            GV.dbCR.query(GV.dbUri, null, "*", new String[] {cmdPort}, null);
+                            this.qCR.query(GV.dbUri, null, "*", new String[] {cmdPort}, null);
                             break;
 
                         case QUERY_COMLETED:
@@ -96,9 +100,12 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
 
                 // 2. Handle Send Message
                 if (!(GV.msgSendQueue.peek() == null)) {
-                    Message msg = GV.msgSendQueue.poll(); // with Remove
-                    Log.e("HANDLE SEND MSG", "" + msg.toString());
-                    new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg.toString(), msg.getTgtPort());
+                    if (System.currentTimeMillis() - this.lastTime > 50) {
+                        this.lastTime = System.currentTimeMillis();
+                        NewMessage msg = GV.msgSendQueue.poll(); // with Remove
+                        Log.e("HANDLE SEND MSG", "" + msg.toString());
+                        new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg.toString(), msg.getTgtPort());
+                    }
                 }
 
             } catch (Exception e) {
@@ -111,7 +118,7 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
         ContentValues cv = new ContentValues();
         cv.put("key", key);
         cv.put("value", value);
-        GV.dbCR.insert(GV.dbUri, cv);
+        this.qCR.insert(GV.dbUri, cv);
         cv.clear();
 
     }

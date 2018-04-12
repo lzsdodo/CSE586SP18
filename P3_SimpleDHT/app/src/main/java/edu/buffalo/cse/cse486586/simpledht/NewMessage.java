@@ -10,14 +10,12 @@ import android.util.Log;
  *      Iterator: https://docs.oracle.com/javase/9/docs/api/java/util/Iterator.html
  */
 
-public class Message {
+public class NewMessage {
 
     enum TYPE {
         NONE,
-
         // Chord
-        JOIN, NOTYFY,
-
+        JOIN, NOTIFY,
         // Database
         INSERT_ONE,
         DELETE_ONE, DELETE_ALL,
@@ -32,9 +30,9 @@ public class Message {
     private String msgKey = null;
     private String msgValue = null;
 
-    public Message() {}
+    public NewMessage() {}
 
-    public Message(TYPE msgType, String cmdPort, String tgtPort, String key, String value) {
+    public NewMessage(TYPE msgType, String cmdPort, String tgtPort, String key, String value) {
         this();
         this.msgType = msgType;
         this.cmdPort = cmdPort;
@@ -44,7 +42,7 @@ public class Message {
         this.msgBody = this.msgKey + "<>" + this.msgValue;
     }
 
-    public Message(TYPE msgType, String cmdPort, String tgtPort, String msgBody) {
+    public NewMessage(TYPE msgType, String cmdPort, String tgtPort, String msgBody) {
         this();
         this.msgType = msgType;
         this.cmdPort = cmdPort;
@@ -68,10 +66,10 @@ public class Message {
     public void setMsgKey (String msgKey) {this.msgKey = msgKey;}
     public void setMsgValue (String msgValue) {this.msgValue = msgValue;}
 
-    public static Message parseMsg(String s) {
+    public static NewMessage parseMsg(String s) {
         Log.v("PARSE MSG", s);
         String[] msgInfo = s.split("::");
-        Message msg = new Message();
+        NewMessage msg = new NewMessage();
 
         msg.setCmdPort(msgInfo[0]);
         msg.setTgtPort(msgInfo[1]);

@@ -1,6 +1,5 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
-import android.content.ContentResolver;
 import android.net.Uri;
 
 import java.util.ArrayList;
@@ -9,12 +8,12 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
 
+
 class GV {
 
     static final String URI = "edu.buffalo.cse.cse486586.simpledht.provider";
 
     static Uri dbUri = null;
-    static ContentResolver dbCR = null;
     static boolean dbIsWaiting = false;
 
     static final int SERVER_PORT = 10000;
@@ -24,8 +23,8 @@ class GV {
 
     static String MY_PORT = null; // My Port
 
-    static Queue<Message> msgRecvQueue = new LinkedList<Message>();
-    static Queue<Message> msgSendQueue = new LinkedList<Message>();
+    static Queue<NewMessage> msgRecvQueue = new LinkedList<NewMessage>();
+    static Queue<NewMessage> msgSendQueue = new LinkedList<NewMessage>();
 
     static HashMap<String, String> resultOneMap = new HashMap<String, String>();
     static HashMap<String, String> resultAllMap = new HashMap<String, String>();
@@ -40,7 +39,6 @@ Order: 5562 -> 5556 -> 5554 -> 5558 -> 5560
 "5558", "abf0fd8db03e5ecb199a9b82929e9db79b909643";
 "5560", "c25ddd596aa7c81fa12378fa725f706d54325d12";
 "5562", "177ccecaec32c54b82d5aaafc18a2dadb753e3b1";
-
 
 PRED: 5556, NODE: 5554, SUCC: 5558
 FingerTable:
