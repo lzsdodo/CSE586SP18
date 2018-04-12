@@ -24,17 +24,16 @@ public class SimpleDhtProvider extends ContentProvider {
         String key = values.getAsString("key");
         String value = values.getAsString("value");
 
-        String kid = Utils.genHash(key);
-        String targetPort = Chord.getInstance().lookup(kid);
+        String targetPort = Chord.getInstance().lookup(key);
 
-        if(targetPort.equals(chord.getNPort())) {
+        if(targetPort.equals(chord.getPort())) {
             // insert one on local
             this.insertOne(values);
 
         } else {
             // tell the specific node to insert
             GV.msgSendQueue.offer(new Message(Message.TYPE.INSERT_ONE,
-                    chord.getNPort(), targetPort, key, value));
+                    chord.getPort(), targetPort, key, value));
         }
 
         GV.dbIsBusy = false;
@@ -63,7 +62,7 @@ public class SimpleDhtProvider extends ContentProvider {
                     // Not single node
                     // Delete all on local and tell to succ node
                     GV.msgSendQueue.offer(new Message(Message.TYPE.DELETE_ALL,
-                            chord.getNPort(), chord.getSuccPort(), "*", null));
+                            chord.getPort(), chord.getSuccPort(), "*", null));
                 }
 
             } else {
@@ -88,16 +87,15 @@ public class SimpleDhtProvider extends ContentProvider {
         }
 
         // not "@" or "*"
-        String kid = Utils.genHash(selection);
-        String targetPort = chord.lookup(kid);
+        String targetPort = chord.lookup(selection);
 
-        if(targetPort.equals(chord.getNPort())) {
+        if(targetPort.equals(chord.getPort())) {
             // delete one on local
             affectedRows = this.deleteOne(selection);
         } else {
             // tell the specific node to delete
             GV.msgSendQueue.offer(new Message(Message.TYPE.DELETE_ONE,
-                    chord.getNPort(), targetPort, selection, null));
+                    chord.getPort(), targetPort, selection, null));
         }
 
         GV.dbIsBusy = false;
@@ -131,7 +129,7 @@ public class SimpleDhtProvider extends ContentProvider {
 
                     // 1. tell succ nodes
                     GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ALL,
-                            chord.getNPort(), chord.getSuccPort(), "*", null));
+                            chord.getPort(), chord.getSuccPort(), "*", null));
 
                     // 2. wait for all nodes result
                     GV.dbIsWaiting = true;
@@ -170,10 +168,9 @@ public class SimpleDhtProvider extends ContentProvider {
         }
 
         // not equal to "@" or "*"
-        String kid = Utils.genHash(selection);
-        String targetPort = chord.lookup(kid);
+        String targetPort = chord.lookup(selection);
 
-        if(targetPort.equals(chord.getNPort())) {
+        if(targetPort.equals(chord.getPort())) {
             // locate at local
             c = this.queryOne(selection);
 
@@ -199,7 +196,7 @@ public class SimpleDhtProvider extends ContentProvider {
                 GV.resultOneMap.clear();
                 // tell specific node
                 GV.msgSendQueue.offer(new Message(Message.TYPE.QUERY_ONE,
-                        chord.getNPort(), targetPort, selection, null));
+                        chord.getPort(), targetPort, selection, null));
                 // wait for one node result
                 while (GV.resultOneMap.isEmpty()); // Just blocked anb wait
                 c = Utils.makeCursor(GV.resultOneMap);

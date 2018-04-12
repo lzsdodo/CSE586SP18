@@ -27,7 +27,13 @@ public class FingerTable {
                 if (Utils.inInterval(kID,
                         this.fingers.get(i-1).getStartID(),
                         this.fingers.get(i).getStartID())) {
-                    return this.fingers.get(i-1).getSuccPort();
+                    // if there is null port in this interval, find the closest succ port
+                    String targetPort = this.fingers.get(i-1).getSuccPort();
+                    while ((targetPort==null) && (i<=this.ftSize-1)) {
+                        targetPort = this.fingers.get(i).getSuccPort();
+                        i++;
+                    }
+                    return targetPort;
                 }
             }
         }

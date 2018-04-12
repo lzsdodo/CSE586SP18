@@ -26,17 +26,17 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
         chord = Chord.getInstance();
         lastTime = System.currentTimeMillis();
 
-
-
         while (true) {
             try {
                 // 0: TODO: Build the chord ring at first
                 if (chord.getSuccPort() == null) {
-                    if (System.currentTimeMillis() - lastTime > 500) {
+                    if (System.currentTimeMillis() - lastTime > 1000) {
                         lastTime = System.currentTimeMillis();
                         int random = (int) (Math.random()*4); // [0, 1, 2, 3]
-                        Log.e(TAG, "Choose " + GV.PORTS.get(random));
-                        chord.sendJoin(GV.MY_PORT, GV.PORTS.get(random));
+                        String tgtNodePort = GV.PORTS.get(random);
+                        Log.e(TAG, "Choose " + tgtNodePort);
+                        GV.msgSendQueue.offer(new Message(Message.TYPE.JOIN,
+                                chord.getPort(), tgtNodePort, tgtNodePort));
                     }
                 }
 
@@ -44,14 +44,16 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
                 if (!(GV.msgRecvQueue.peek() == null)) {
                     Message msg = GV.msgRecvQueue.poll(); // with Remove
 
-                    String cmdPort = msg.getCommandPort();
-                    String nID = Utils.genHash(cmdPort);
+                    String cmdPort = msg.getCmdPort();
+                    chord.updateFingerTable(cmdPort);
+                    
                     switch (msg.getMsgType()) {
-                        case JOIN: // TODO
-                            chord.join(nID, cmdPort, false);
+                        case JOIN:
+                            chord.getJoin(msg.getMsgValue());
                             break;
 
-                        case NOTYFY: // TODO
+                        case NOTYFY:
+                            chord.getNotify(msg.getMsgValue());
                             break;
 
                         case INSERT_ONE:
@@ -91,11 +93,10 @@ public class QueueTask extends AsyncTask<Void, Void, Void> {
 
                 }
 
-
                 // 2. Handle Send Message
                 if (!(GV.msgSendQueue.peek() == null)) {
                     Message msg = GV.msgSendQueue.poll(); // with Remove
-                    new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg.toString(), msg.getTargetPort());
+                    new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg.toString(), msg.getTgtPort());
                 }
 
             } catch (Exception e) {

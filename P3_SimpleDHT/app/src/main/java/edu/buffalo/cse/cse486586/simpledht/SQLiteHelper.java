@@ -38,7 +38,6 @@ public class SQLiteHelper extends SQLiteOpenHelper {
             " ADD COLUMN " + COLUMN_NAME_VALUE + " STRING;";
 
     private static SQLiteHelper sqlHelper;      // main instance
-    private static SQLiteHelper readOnlySqlHelper;   // read only instance
 
     private SQLiteHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -47,11 +46,6 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     public static SQLiteHelper getInstance(Context context) {
         if (sqlHelper == null) sqlHelper = new SQLiteHelper(context);
         return sqlHelper;
-    }
-
-    public static SQLiteHelper getReadOnlyIns(Context context) {
-        if (readOnlySqlHelper == null) readOnlySqlHelper = new SQLiteHelper(context);
-        return readOnlySqlHelper;
     }
 
     @Override

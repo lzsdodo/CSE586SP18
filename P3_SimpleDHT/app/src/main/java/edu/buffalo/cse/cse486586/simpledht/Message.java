@@ -25,8 +25,8 @@ public class Message {
         RESULT_ONE, RESULT_ALL,
     }
 
-    private String commandPort = null;
-    private String targetPort = null;
+    private String cmdPort = null; // command port
+    private String tgtPort = null; // target port
     private TYPE msgType = TYPE.NONE;
     private String msgBody = null;
     private String msgKey = null;
@@ -34,31 +34,35 @@ public class Message {
 
     public Message() {}
 
-    public Message(TYPE msgType, String cmdPort, String targetPort, String key, String value) {
+    public Message(TYPE msgType, String cmdPort, String tgtPort, String key, String value) {
         this();
-        switch (msgType) {
+        this.msgType = msgType;
+        this.cmdPort = cmdPort;
+        this.tgtPort = tgtPort;
+        this.msgKey = key;
+        this.msgValue = value;
+        this.msgBody = this.msgKey + "<>" + this.msgValue;
+    }
 
-
-            default:
-                this.msgType = msgType;
-                this.commandPort = cmdPort;
-                this.targetPort = targetPort;
-                this.msgKey = key;
-                this.msgValue = value;
-                this.msgBody = this.msgKey + "<>" + this.msgValue;
-                break;
-        }
+    public Message(TYPE msgType, String cmdPort, String tgtPort, String msgBody) {
+        this();
+        this.msgType = msgType;
+        this.cmdPort = cmdPort;
+        this.tgtPort = tgtPort;
+        this.msgBody = msgBody;
+        this.msgKey = null;
+        this.msgValue = null;
     }
 
     public TYPE getMsgType() {return this.msgType;}
-    public String getCommandPort() {return this.commandPort;}
-    public String getTargetPort() {return this.targetPort;}
+    public String getCmdPort() {return this.cmdPort;}
+    public String getTgtPort() {return this.tgtPort;}
     public String getMsgBody () {return this.msgBody;}
     public String getMsgKey() {return this.msgKey;}
     public String getMsgValue() {return this.msgValue;}
 
-    public void setCommandPort (String commandPort) {this.commandPort = commandPort;}
-    public void setTargetPort (String targetPort) {this.targetPort = targetPort;}
+    public void setCmdPort (String cmdPort) {this.cmdPort = cmdPort;}
+    public void setTgtPort (String tgtPort) {this.tgtPort = tgtPort;}
     public void setMsgType (TYPE msgType) {this.msgType = msgType;}
     public void setMsgBody (String msgBody) {this.msgBody = msgBody;}
     public void setMsgKey (String msgKey) {this.msgKey = msgKey;}
@@ -69,20 +73,17 @@ public class Message {
         String[] msgInfo = s.split("::");
         Message msg = new Message();
 
-        msg.setCommandPort(msgInfo[0]);
-        msg.setTargetPort(msgInfo[1]);
+        msg.setCmdPort(msgInfo[0]);
+        msg.setTgtPort(msgInfo[1]);
         msg.setMsgType(TYPE.valueOf(msgInfo[2]));
         msg.setMsgBody(msgInfo[3]);
 
         String[] kvPairs = msg.getMsgBody().split("<>");
-        if (kvPairs.length == 1) {
-            msg.setMsgKey(kvPairs[0]);
-            msg.setMsgValue(null);
-        } else if (kvPairs.length == 2) {
+        if (kvPairs.length == 2) {
             msg.setMsgKey(kvPairs[0]);
             msg.setMsgValue(kvPairs[1]);
         } else {
-            msg.setMsgKey(null);
+            msg.setMsgKey(kvPairs[0]);
             msg.setMsgValue(null);
         }
 
@@ -91,13 +92,12 @@ public class Message {
 
     public String toString() {
         // senderPort::msgType::msgKey::msgVal
-        return this.commandPort + "::" + this.targetPort + "::" +
+        return this.cmdPort + "::" + this.tgtPort + "::" +
                 this.msgType.name() + "::" + this.msgBody;
     }
 
 
     /*
-
     // Don't optimize too early!
     // send back result one by one first
 
@@ -118,7 +118,6 @@ public class Message {
         }
         return kvPairsMap;
     }
-
      */
 
 }
