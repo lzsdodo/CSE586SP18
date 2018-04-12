@@ -18,18 +18,18 @@ import java.net.UnknownHostException;
 /*
  * Reference:
  * - Android Dev Docs:
- *      Java.IO Overview: https://developer.android.com/reference/java/io/package-summary.html
- *      InputStream: https://developer.android.com/reference/java/io/InputStream.html
- *      OutputStream: https://developer.android.com/reference/java/io/OutputStream.html
- *      BufferedReader: https://developer.android.com/reference/java/io/BufferedReader.html
- *      Socket: https://developer.android.com/reference/java/net/Socket.html
- *      ServerSocket: https://developer.android.com/reference/java/net/ServerSocket.html
- *      Java Sockets Tutorials: https://docs.oracle.com/javase/tutorial/networking/sockets/index.html
- *      SocketException: https://developer.android.com/reference/java/net/SocketException.html
- *      ConnectTimeoutException: https://developer.android.com/reference/org/apache/http/conn/ConnectTimeoutException.html
- *      SocketTimeoutException: https://developer.android.com/reference/java/net/SocketTimeoutException.html
+ *      - Java.IO Overview: https://developer.android.com/reference/java/io/package-summary.html
+ *      - InputStream: https://developer.android.com/reference/java/io/InputStream.html
+ *      - OutputStream: https://developer.android.com/reference/java/io/OutputStream.html
+ *      - BufferedReader: https://developer.android.com/reference/java/io/BufferedReader.html
+ *      - Socket: https://developer.android.com/reference/java/net/Socket.html
+ *      - ServerSocket: https://developer.android.com/reference/java/net/ServerSocket.html
+ *      - Java Sockets Tutorials: https://docs.oracle.com/javase/tutorial/networking/sockets/index.html
+ *      - SocketException: https://developer.android.com/reference/java/net/SocketException.html
+ *      - ConnectTimeoutException: https://developer.android.com/reference/org/apache/http/conn/ConnectTimeoutException.html
+ *      - SocketTimeoutException: https://developer.android.com/reference/java/net/SocketTimeoutException.html
  * - Oracle Doce:
- *      Socket: https://docs.oracle.com/javase/9/docs/api/java/net/Socket.html
+ *      - Socket: https://docs.oracle.com/javase/9/docs/api/java/net/Socket.html
  */
 
 

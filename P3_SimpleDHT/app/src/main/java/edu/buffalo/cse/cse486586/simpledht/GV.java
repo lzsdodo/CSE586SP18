@@ -8,6 +8,16 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
 
+/*
+ * Reference:
+ *  Queue: https://docs.oracle.com/javase/9/docs/api/java/util/Queue.html
+ *  LinkedList: https://docs.oracle.com/javase/9/docs/api/java/util/LinkedList.html
+ *  HashMap: https://docs.oracle.com/javase/9/docs/api/java/util/HashMap.html
+ *  Map: https://docs.oracle.com/javase/9/docs/api/java/util/Map.html
+ *  ArrayList:
+ *  Uri:
+ */
+
 
 class GV {
     static final String URI = "edu.buffalo.cse.cse486586.simpledht.provider";

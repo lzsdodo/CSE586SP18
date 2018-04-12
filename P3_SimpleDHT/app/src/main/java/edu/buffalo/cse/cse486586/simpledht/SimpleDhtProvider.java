@@ -13,7 +13,11 @@ import java.util.Map;
 
 /*
  * Reference
- *  Dev Docs:
+ * - Dev Docs:
+ *      - ContentProvider: http://developer.android.com/guide/topics/providers/content-providers.html
+ *      - ContentValues: https://developer.android.com/reference/android/content/ContentValues.html
+ *      - Cursor: https://developer.android.com/reference/android/database/Cursor.html
+ *      - SQLiteOpenHelper: https://developer.android.com/reference/android/database/sqlite/SQLiteOpenHelper.html
  *      - MatrixCursor: https://developer.android.com/reference/android/database/MatrixCursor.html
  */
 
