@@ -3,6 +3,8 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
 import android.os.Handler;
@@ -52,16 +54,21 @@ public class SimpleDynamoActivity extends Activity {
         mTextView.setMovementMethod(new ScrollingMovementMethod());
 
         TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
-        String MY_PORT = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
+        GV.MY_PORT = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
+        Log.e("MAIN", GV.MY_PORT + "" );
 
-        uiHandler = new Handler() {
+
+        GV.dbUri = new Uri.Builder().scheme("content").authority(GV.URI).build();
+        this.mCR = getContentResolver();
+
+        this.uiHandler = new Handler() {
             @Override
             public void handleMessage(Message msg) {
                 super.handleMessage(msg);
                 switch (msg.what) {
                     case UI:
                         uiCounter++;
-                        if (uiCounter > 30) {
+                        if (uiCounter > 50) {
                             mTextView.setText("CLEAR UI...\n");
                         }
                         mTextView.append(msg.obj + "\n");
@@ -71,6 +78,10 @@ public class SimpleDynamoActivity extends Activity {
             }
         };
 
+        // Task Thread
+        new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        // new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
+        this.test();
     }
 
 	@Override
@@ -85,5 +96,10 @@ public class SimpleDynamoActivity extends Activity {
 	    Log.v("Test", "onStop()");
 	    // The test will kill process directly, so we can not handle stop on this.
 	}
+
+	public void test() {
+        Log.d("TEST", "Test...");
+        Dynamo dynamo = Dynamo.getInstance();
+    }
 
 }

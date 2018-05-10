@@ -62,8 +62,8 @@ public class SimpleDynamoProvider extends ContentProvider {
     }
 
     private Cursor queryOne(String key) {
-        String[] columns = new String[] {this.dbHelper.COLUMN_NAME_KEY, this.dbHelper.COLUMN_NAME_VALUE};
-        String selection = this.dbHelper.COLUMN_NAME_KEY + "=?";
+        String[] columns = new String[] {this.dbHelper.COL_NAME_KEY, this.dbHelper.COL_NAME_VALUE};
+        String selection = this.dbHelper.COL_NAME_KEY + "=?";
         String[] selectedKey = new String[] {key};
 
         Cursor c = this.dbHelper.getReadableDatabase().query(
@@ -76,7 +76,7 @@ public class SimpleDynamoProvider extends ContentProvider {
     }
 
     private Cursor queryAll() {
-        String[] columns = new String[] {this.dbHelper.COLUMN_NAME_KEY, this.dbHelper.COLUMN_NAME_VALUE};
+        String[] columns = new String[] {this.dbHelper.COL_NAME_KEY, this.dbHelper.COL_NAME_VALUE};
 
         Cursor c = this.dbHelper.getReadableDatabase().query(
                 this.dbHelper.TABLE_NAME, columns, null, null,
@@ -88,7 +88,7 @@ public class SimpleDynamoProvider extends ContentProvider {
     }
 
     private int deleteOne(String key) {
-        String selection = this.dbHelper.COLUMN_NAME_KEY + "=?";
+        String selection = this.dbHelper.COL_NAME_KEY + "=?";
         String[] selectedKey = new String[] {key};
 
         int affectedRows = this.dbHelper.getWritableDatabase().delete(
@@ -144,7 +144,7 @@ public class SimpleDynamoProvider extends ContentProvider {
 	@Override
 	public boolean onCreate() {
 		this.dbHelper = SQLiteHelper.getInstance(getContext());
-		this.dbHelper.getWritableDatabase().execSQL("DELETE FROM " + dbHelper.TABLE_NAME + ";"); // Clean Table
+		// this.dbHelper.getWritableDatabase().execSQL("DELETE FROM " + dbHelper.TABLE_NAME + ";"); // Clean Table
 		return true;
 	}
 

@@ -73,8 +73,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
             // Server response timeout
             Log.e(TAG, "ClientTask SocketTimeoutException");
         } catch (SocketException e) {
-            // 1. IO on socket after closed by yourself.
-            // 2. Connect reset by peer / Connection reset
+            // 1. IO on socket after closed by yourself; 2. Connect reset by peer / Connection reset.
             Log.e(TAG, "ClientTask SocketException");
         } catch (EOFException e) {
             // 当输入过程中意外到达文件或流的末尾时，抛出此异常。

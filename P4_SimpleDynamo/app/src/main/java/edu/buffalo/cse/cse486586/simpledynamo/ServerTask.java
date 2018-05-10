@@ -21,7 +21,6 @@ import java.net.UnknownHostException;
 public class ServerTask extends AsyncTask<Void, String, Void> {
 
     static final String TAG = "SERVER";
-    static int msgCounter = 0;
 
     private ServerSocket serverSocket = null;
     private Socket socket = null;
@@ -57,7 +56,6 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
                     this.br = new BufferedReader(new InputStreamReader(in));
 
                     publishProgress(this.br.readLine());
-                    msgCounter++;
 
                     this.br.close();
                     this.in.close();
@@ -96,22 +94,14 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
         Log.v(TAG, "RECV MSG: " + recvStr);
 
         // Put it to the msg receive queue
-        NewMessage msg = NewMessage.parseMsg(recvStr);
+        NMessage msg = NMessage.parseMsg(recvStr);
         GV.msgRecvQueue.offer(msg);
 
         // Print it to UI
         Message uiMsg = new Message();
-        if (msgCounter < 20) {
-            uiMsg.what = SimpleDhtActivity.UI;
-            uiMsg.obj = msg.toString();
-            SimpleDhtActivity.uiHandler.sendMessage(uiMsg);
-        } else {
-            msgCounter = 0;
-            uiMsg.what = SimpleDhtActivity.CLEAN;
-            uiMsg.obj = msg.toString();
-            SimpleDhtActivity.uiHandler.sendMessage(uiMsg);
-        }
-
+        uiMsg.what = SimpleDynamoActivity.UI;
+        uiMsg.obj = msg.toString();
+        SimpleDynamoActivity.uiHandler.sendMessage(uiMsg);
     }
 
     @Override

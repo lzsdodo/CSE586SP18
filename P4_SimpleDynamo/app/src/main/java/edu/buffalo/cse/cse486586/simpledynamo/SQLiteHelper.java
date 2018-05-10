@@ -24,19 +24,25 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
     // table
     public static final String TABLE_NAME        = "entry";
-    public static final String COLUMN_NAME_ID   = "_ID";
-    public static final String COLUMN_NAME_KEY   = "key";
-    public static final String COLUMN_NAME_VALUE = "value";
+    public static final String COL_NAME_ID       = "_ID";
+    public static final String COL_NAME_KEY      = "key";
+    public static final String COL_NAME_VALUE    = "value";
+    public static final String COL_NAME_POSITION = "pos";
+    public static final String COL_NAME_VERSION  = "version";
+    public static final String COL_NAME_STATUS   = "missing";
 
     // sql
     private static final String SQL_CREATE_ENTRIES = "CREATE TABLE " +
             TABLE_NAME + " ( " +
-            COLUMN_NAME_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-            COLUMN_NAME_KEY + " STRING NOT NULL UNIQUE, " +
-            COLUMN_NAME_VALUE + " STRING );";
+            COL_NAME_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+            COL_NAME_KEY + " STRING NOT NULL UNIQUE, " +
+            COL_NAME_VALUE + " STRING + " +
+            COL_NAME_POSITION + " STRING + " +
+            COL_NAME_VERSION + " STRING + " +
+            COL_NAME_STATUS + " STRING + );";
 
     private static final String SQL_ALTER_ENTRIES = "ALTER TABLE " + TABLE_NAME +
-            " ADD COLUMN " + COLUMN_NAME_VALUE + " STRING;";
+            " ADD COLUMN " + COL_NAME_VALUE + " STRING;";
 
     private static SQLiteHelper sqlHelper;      // main instance
 
@@ -52,7 +58,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        // db.execSQL(SQL_CREATE_ENTRIES);
+        db.execSQL(SQL_CREATE_ENTRIES);
         Log.v("DATABASE", SQL_CREATE_ENTRIES);
     }
 
