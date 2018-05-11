@@ -14,6 +14,8 @@ public class GV {
 
     static Uri dbUri = null;
 
+    static final Object lock = new Object();
+
     static final Object lockOne = new Object();
     static final Object lockAll = new Object();
 
@@ -25,6 +27,10 @@ public class GV {
 
     static Queue<NMessage> msgRecvQueue = new LinkedList<NMessage>();
     static Queue<NMessage> msgSendQueue = new LinkedList<NMessage>();
+
+//    static Queue<NMessage> msgWriteQueue = new LinkedList<NMessage>();
+//    static Queue<NMessage> msgQueryQueue = new LinkedList<NMessage>();
+//    static Queue<NMessage> msgResultQueue = new LinkedList<NMessage>();
 
     static HashMap<String, String> resultOneMap = new HashMap<String, String>();
     static HashMap<String, String> resultAllMap = new HashMap<String, String>();

@@ -1,5 +1,7 @@
 package edu.buffalo.cse.cse486586.simpledynamo;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.os.AsyncTask;
 import android.os.Message;
 import android.util.Log;
@@ -21,6 +23,7 @@ import java.net.UnknownHostException;
 public class ServerTask extends AsyncTask<Void, String, Void> {
 
     static final String TAG = "SERVER";
+
 
     private ServerSocket serverSocket = null;
     private Socket socket = null;
@@ -49,7 +52,7 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
                 if (this.socket != null) {
                     Log.d(TAG, "Accepted connection from " + this.socket.getRemoteSocketAddress().toString());
                     this.socket.setReceiveBufferSize(8192); // Receive Buffer Default 8192
-                    this.socket.setSoTimeout(300); // Response Timeout
+                    this.socket.setSoTimeout(100); // Response Timeout
 
                     this.out = this.socket.getOutputStream();
                     this.in = this.socket.getInputStream();
@@ -95,6 +98,21 @@ public class ServerTask extends AsyncTask<Void, String, Void> {
 
         // Put it to the msg receive queue
         NMessage msg = NMessage.parseMsg(recvStr);
+//        switch (msg.getMsgType()) {
+//            case INSERT:
+//            case DELETE:
+//                GV.msgWriteQueue.offer(msg);
+//                break;
+//            case RESULT_ONE:
+//            case RESULT_ALL:
+//            case RESULT_ALL_COMLETED:
+//                GV.msgResultQueue.offer(msg);
+//                break;
+//            case QUERY:
+//                GV.msgQueryQueue.offer(msg);
+//                break;
+//            default: break;
+//        }
         GV.msgRecvQueue.offer(msg);
 
         // Print it to UI

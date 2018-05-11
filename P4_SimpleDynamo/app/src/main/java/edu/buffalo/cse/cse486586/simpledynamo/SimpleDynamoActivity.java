@@ -59,7 +59,6 @@ public class SimpleDynamoActivity extends Activity {
         GV.MY_PORT = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
         Log.e("MAIN", GV.MY_PORT + "" );
 
-
         GV.dbUri = new Uri.Builder().scheme("content").authority(GV.URI).build();
         this.mCR = getContentResolver();
 
@@ -70,7 +69,7 @@ public class SimpleDynamoActivity extends Activity {
                 switch (msg.what) {
                     case UI:
                         uiCounter++;
-                        if (uiCounter > 50) {
+                        if (uiCounter > 30) {
                             mTextView.setText("CLEAR UI...\n");
                         }
                         mTextView.append(msg.obj + "\n");
@@ -80,25 +79,15 @@ public class SimpleDynamoActivity extends Activity {
             }
         };
 
-        this.init();
-
-        this.test();
-    }
-
-    public void test() {
-        Log.e(TAG, "Testing");
-    }
-
-    public void init() {
-        Log.d("MAIN", "INIT");
         // Init Dynamo Instance
         Dynamo dynamo = Dynamo.getInstance();
 
         // Task Thread
         new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        // new ClientTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
-    }
 
+    }
 
     @Override
 	public boolean onCreateOptionsMenu(Menu menu) {

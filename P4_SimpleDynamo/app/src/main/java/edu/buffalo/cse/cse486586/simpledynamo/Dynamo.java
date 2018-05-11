@@ -54,25 +54,24 @@ public class Dynamo {
 
     // TODO WRITE
     public String getWriteTgtPort(String key) {
-        ArrayList<String> perferIdList = this.getPerferIdList(key);
-        return this.idPortMap.get(perferIdList.get(0));
+        return this.idPortMap.get(this.getPerferIdList(key).get(0));
     }
 
     public boolean isLastNodeToWrite(String key) {
-        ArrayList<String> perferIdList = this.getPerferIdList(key);
-        return this.id.equals(perferIdList.get(N-1));
+        return this.id.equals(this.getPerferIdList(key).get(N-1));
     }
 
     // TODO QUERY
     public String getQueryTgtPort(String key) {
-        ArrayList<String> perferIdList = this.getPerferIdList(key);
-        return this.idPortMap.get(perferIdList.get(N-1));
+        return this.idPortMap.get(this.getPerferIdList(key).get(N-1));
     }
 
+    /*
     public boolean isLastNodeToQuery(String key) {
         ArrayList<String> perferIdList = this.getPerferIdList(key);
         return this.id.equals(perferIdList.get(0));
     }
+    */
 
 
 
@@ -109,13 +108,22 @@ public class Dynamo {
         return this.getPerferIdList(key).indexOf(id);
     }
 
+    public ArrayList<String> portsOfPerferIdList(ArrayList<String> perferIdList) {
+        ArrayList<String> ports = new ArrayList<String>();
+        for(String id: perferIdList) {
+            ports.add(this.idPortMap.get(id));
+        }
+        return ports;
+    }
+
     public ArrayList<String> getPerferIdList(String key) {
         String kid = genHash(key);
         for (int i=1; i<6; i++) {
             if (inInterval(kid, this.nodeIdList.get(i-1), this.nodeIdList.get(i))) {
                 ArrayList<String> perferIdList = new ArrayList<String>(0);
                 perferIdList.addAll(this.nodeIdList.subList(i, i+N));
-                Log.d("TAG", kid + " -> " + perferIdList.toString());
+                Log.d("DYNAMO", key + "::" + kid + " -> " + perferIdList.toString() +
+                        this.portsOfPerferIdList(perferIdList).toString());
                 return perferIdList;
             }
         }

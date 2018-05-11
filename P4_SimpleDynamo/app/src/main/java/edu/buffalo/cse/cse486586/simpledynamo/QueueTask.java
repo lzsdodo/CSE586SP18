@@ -11,26 +11,24 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 
     static final String TAG = "QUEUE";
 
-    private ContentResolver qCR;
-    private Dynamo dynamo;
+    static ContentResolver qCR;
+
     private long lastTime;
 
     @Override
     protected Void doInBackground (ContentResolver...cr) {
         Log.d(TAG, "START QueueTask");
-
-        this.qCR = cr[0];
-        this.dynamo = Dynamo.getInstance();
+        qCR = cr[0];
         this.lastTime = System.currentTimeMillis();
 
         while (true) {
             try {
                 // 0: Update at first
 
-
-                // 1. Handle Receive Message
+                // 2. Handle Receive Message
                 if (!(GV.msgRecvQueue.peek() == null)) {
-                    NMessage msg = GV.msgRecvQueue.poll(); // with Remove
+                NMessage msg = GV.msgRecvQueue.poll(); // with Remove
+
                     Log.e("HANDLE RECV MSG", "" + msg.toString());
 
                     String cmdPort = msg.getCmdPort();
@@ -43,13 +41,12 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 
                         case DELETE:
                             Log.e("HANDLE DELETE", msg.toString());
-                            this.qCR.delete(GV.dbUri, msg.getMsgKey(), new String[] {cmdPort});
+                            qCR.delete(GV.dbUri, msg.getMsgKey(), new String[] {cmdPort});
                             break;
-
 
                         case QUERY:
                             Log.e("HANDLE QUERY", msg.toString());
-                            this.qCR.query(GV.dbUri, null, msg.getMsgKey(), new String[] {cmdPort}, null);
+                            qCR.query(GV.dbUri, null, msg.getMsgKey(), new String[] {cmdPort}, null);
                             break;
 
                         case RESULT_ONE:
@@ -70,24 +67,26 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
 
                         default: break;
                     }
-
                 }
 
+                // 1: Send Message
                 if (!(GV.msgSendQueue.peek() == null)) {
                     if (System.currentTimeMillis() - this.lastTime > 100) {
-                        this.lastTime = System.currentTimeMillis();
 
                         NMessage msg = GV.msgSendQueue.poll(); // with Remove
                         Log.e("HANDLE SEND MSG", "" + msg.toString());
                         new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg.toString(), msg.getTgtPort());
+                        this.lastTime = System.currentTimeMillis();
                     }
                 }
+
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
+
 
 
     private boolean isFailedSituation() {
@@ -118,15 +117,9 @@ public class QueueTask extends AsyncTask<ContentResolver, Void, Void> {
         cv.put("cmdPort", cmdPort);
         cv.put("key", key);
         cv.put("value", value);
-        this.qCR.insert(GV.dbUri, cv);
+        qCR.insert(GV.dbUri, cv);
         cv.clear();
     }
 
-    private void handleQueryOne(String key) {
-    }
-
-    private void handleDeleteOne(String key) {
-
-    }
 
 }

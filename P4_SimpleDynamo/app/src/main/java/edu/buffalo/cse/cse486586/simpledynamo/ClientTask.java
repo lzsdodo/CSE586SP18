@@ -53,7 +53,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
             if (socket.isConnected()) {
                 Log.v(TAG, "CONNECTED SERVER: " + socket.getRemoteSocketAddress());
                 socket.setSendBufferSize(8192); // Send Buff Default 8192
-                socket.setSoTimeout(300); // Response Timeout
+                socket.setSoTimeout(100); // Response Timeout
 
                 InputStream in = socket.getInputStream();
                 OutputStream out = socket.getOutputStream();
@@ -66,7 +66,7 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
                 in.close();
                 while (!socket.isClosed()) { socket.close(); }
                 connFlag = true;
-                Log.v(TAG, "CLIENTSOCKET CLOSED.");
+                // Log.v(TAG, "CLIENTSOCKET CLOSED.");
             }
 
         } catch (SocketTimeoutException e) {
@@ -87,8 +87,9 @@ public class ClientTask extends AsyncTask<String, Integer, Void> {
         } catch (Exception e) {
             Log.e(TAG, "ClientTask Exception");
         } finally {
-            if (!connFlag)
+            if (!connFlag) {
                 Log.e(TAG, "DISCONN DEVICE: " + tgtPort);
+            }
         }
         return null;
     }

@@ -1,8 +1,5 @@
 package edu.buffalo.cse.cse486586.simpledynamo;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Formatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -28,39 +25,68 @@ import android.util.Log;
 
 public class SimpleDynamoProvider extends ContentProvider {
 
-	private SQLiteHelper dbHelper;
+    static String TAG = "DB";
+
+    private SQLiteHelper dbHelper;
+
+    private String waitingKey = null;
 
 
     // API just used to send msg to target
     @Override
-    synchronized public Uri insert(Uri uri, ContentValues values) {
+    public Uri insert(Uri uri, ContentValues values) {
         Dynamo dynamo = Dynamo.getInstance();
-
         String key = values.getAsString("key");
         String value = values.getAsString("value");
         String cmdPort = values.getAsString("cmdPort");
 
-        if(cmdPort == null) {
+        if (cmdPort == null) {
+            // 本地命令
+            Log.d("INSERT", "LOCAL INSERT CMD - " + key);
+
             // send msg to target
             String tgtPort = dynamo.getWriteTgtPort(key);
-            GV.msgSendQueue.offer(new NMessage(
-                    NMessage.TYPE.INSERT,
-                    dynamo.getPort(), dynamo.getPort(), tgtPort,
-                    key, value));
+            if (tgtPort.equals(dynamo.getPort())) {
+                // 本地就是开头
+                Log.d("INSERT", "START INSERT FROM LOCAL - " + key);
+                this.insertOne(values);
+                GV.msgSendQueue.offer(new NMessage(
+                        NMessage.TYPE.INSERT,
+                        dynamo.getPort(), dynamo.getPort(), dynamo.getSuccPort(),
+                        key, value));
+
+            } else {
+                Log.d("INSERT", "Belongs to others: " + tgtPort);
+                GV.msgSendQueue.offer(new NMessage(
+                        NMessage.TYPE.INSERT,
+                        dynamo.getPort(), dynamo.getPort(), tgtPort,
+                        key, value));
+            }
 
             // TODO: Maybe Can not send to fail node
 
         } else {
-            // handle insert
+            // 外部命令
+            Log.d("INSERT", "OUTSIDE INSERT CMD - " + key);
+
+            int index = dynamo.getPerferIdList(key).indexOf(dynamo.getId());
+            Log.d("INSERT", "No." + index + " - " + dynamo.getPort() + " -> " + dynamo.getSuccPort());
+
+            // Insert
             values.remove("cmdPort");
             this.insertOne(values);
-            // Not final node to write
+
+            // NOT FINAL NODE
             if (!dynamo.isLastNodeToWrite(key)) {
-                // go on insert
                 GV.msgSendQueue.offer(new NMessage(
                         NMessage.TYPE.INSERT,
                         cmdPort, dynamo.getPort(), dynamo.getSuccPort(),
                         key, value));
+            } else {
+                if (this.waitingKey != null && this.waitingKey.equals(key)) {
+                    this.waitingKey = null;
+                    GV.lockOne.notify();
+                }
             }
         }
 
@@ -69,13 +95,14 @@ public class SimpleDynamoProvider extends ContentProvider {
 
 
     @Override
-    synchronized public int delete(Uri uri, String selection, String[] selectionArgs) {
+    public int delete(Uri uri, String selection, String[] selectionArgs) {
         int affectedRows = 0;
         Dynamo dynamo = Dynamo.getInstance();
         String cmdPort = (selectionArgs == null) ? null : selectionArgs[0];
+        Log.d("DELETE", selection + "<>");
 
-        // local command
         if (cmdPort == null) {
+            // 本地命令
 
             // "@" or "*"
             if (selection.equals("@") || selection.equals("*")) {
@@ -95,28 +122,29 @@ public class SimpleDynamoProvider extends ContentProvider {
             }
 
 
-        // recv command
-        } else {
 
+        } else {
+            // 外部命令
             // "@" or "*"
-            if (selection.equals("@") || selection.equals("*")) {
+            if (selection.equals("@")) {
+                affectedRows = this.deleteAll();
+            }
+            if (selection.equals("*")) {
                 affectedRows = this.deleteAll();
 
-                if (selection.equals("*")) {
-                    if (cmdPort.equals(dynamo.getSuccPort())) {
-                        // DONE: last node command
-                        Log.e("DELETE ALL", "DONE");
-                    } else {
-                        // GO ON, Send to next node
-                        GV.msgSendQueue.offer(new NMessage(
-                                NMessage.TYPE.DELETE,
-                                cmdPort, dynamo.getPort(), dynamo.getSuccPort(),
-                                selection, selection));
-                        Log.e("DELETE ALL", "IN LOOP.");
-                    }
+                if (cmdPort.equals(dynamo.getSuccPort())) {
+                    // DONE: last node command
+                    Log.d("DELETE ALL", "DONE");
+                } else {
+                    // GO ON, Send to next node
+                    GV.msgSendQueue.offer(new NMessage(
+                            NMessage.TYPE.DELETE,
+                            cmdPort, dynamo.getPort(), dynamo.getSuccPort(),
+                            "*", "---"));
+                    Log.d("DELETE ALL", "CONTINUE");
                 }
 
-            // not "@" or "*"
+                // not "@" or "*"
             } else {
                 affectedRows = this.deleteOne(selection);
                 if (!dynamo.isLastNodeToWrite(selection)) {
@@ -129,24 +157,22 @@ public class SimpleDynamoProvider extends ContentProvider {
 
             }
         }
-
         return affectedRows;
     }
 
 
     // TODO
 	@Override
-    synchronized public Cursor query(Uri uri, String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
+    public synchronized Cursor query(Uri uri, String[] projection, String selection,
+        String[] selectionArgs, String sortOrder) {
 
         Cursor c = null;
         Dynamo dynamo = Dynamo.getInstance();
-        String cmdPort = (selectionArgs==null) ? null : selectionArgs[0];
-        Log.e("QUERY", "CMD PORT: " + cmdPort);
+        String cmdPort = (selectionArgs == null) ? null : selectionArgs[0];
+        Log.e(TAG, "QUERY " + cmdPort + ": " + selection );
 
         // "@"
         if (selection.equals("@")) {
-            // query all on local
             c = this.queryAll();
             c.moveToFirst();
             return c;
@@ -157,9 +183,9 @@ public class SimpleDynamoProvider extends ContentProvider {
             c = this.queryAll();
             c.moveToFirst();
 
-            // local command
             if (cmdPort == null) {
-                synchronized(GV.lockAll) {
+                // 本地指令
+                synchronized (GV.lockAll) {
                     GV.resultAllMap.clear();
                     GV.resultAllMap = this.cursorToHashMap(c);
 
@@ -167,7 +193,7 @@ public class SimpleDynamoProvider extends ContentProvider {
                     GV.msgSendQueue.offer(new NMessage(
                             NMessage.TYPE.QUERY,
                             dynamo.getPort(), dynamo.getPort(), dynamo.getSuccPort(),
-                            selection, selection));
+                            "*", "???"));
 
                     // 2. wait for all nodes result
                     try {
@@ -183,67 +209,49 @@ public class SimpleDynamoProvider extends ContentProvider {
                     GV.resultAllMap.clear();
                 }
 
-            // other node command
             } else {
-                for (Map.Entry entry: this.cursorToHashMap(c).entrySet()) {
+                // 外部指令
+                for (Map.Entry entry : this.cursorToHashMap(c).entrySet()) {
                     GV.msgSendQueue.offer(new NMessage(
                             NMessage.TYPE.RESULT_ALL,
                             cmdPort, dynamo.getPort(), cmdPort,
                             entry.getKey().toString(), entry.getValue().toString()));
                 }
-
-                // final node
+                // 判断是否最后节点
                 if (cmdPort.equals(dynamo.getSuccPort())) {
                     // DONE: this node is the pred node of the cmd node
                     GV.msgSendQueue.offer(new NMessage(
                             NMessage.TYPE.RESULT_ALL_COMLETED,
                             cmdPort, dynamo.getPort(), cmdPort,
-                            selection, selection));
-                    Log.d("QUERY ALL", "FINAL QUERY ALL");
+                            "*", "???"));
+                    Log.d("QUERY ALL", "DONE");
 
-                // GO ON, Send to next node
                 } else {
                     GV.msgSendQueue.offer(new NMessage(
                             NMessage.TYPE.QUERY,
                             cmdPort, dynamo.getPort(), dynamo.getSuccPort(),
-                            selection, selection));
-                    Log.d("QUERY ALL", "IN LOOP.");
+                            "*", "???"));
+                    Log.d("QUERY ALL", "CONTINUE");
                 }
             }
             return c;
         }
 
+
         // not equal to "@" or "*"
-        if (cmdPort != null) {
-            // Return the result
-            c = this.queryOne(selection);
-            c.moveToFirst();
-            String resKey = c.getString(c.getColumnIndex("key"));
-            String resVal = c.getString(c.getColumnIndex("value"));
-            GV.msgSendQueue.offer(new NMessage(
-                    NMessage.TYPE.RESULT_ONE,
-                    cmdPort, dynamo.getPort(), cmdPort,
-                    resKey, resVal));
+        String tgtPort = dynamo.getQueryTgtPort(selection);
 
-        } else {
-            // Search target
-            String tgtPort = dynamo.getQueryTgtPort(selection);
+        if (cmdPort == null) {
+            // 本地命令
 
-            if(tgtPort.equals(dynamo.getPort())) {
-                // locate at local
+            if (tgtPort.equals(dynamo.getPort())) {
+                // 本地就是 perferlist 最后一个
                 c = this.queryOne(selection);
-                c.moveToFirst();
 
-            } else {
-                // locate at other node
-                synchronized(GV.lockOne) {
-                    GV.resultOneMap.clear();
-                    GV.msgSendQueue.offer(new NMessage(
-                            NMessage.TYPE.QUERY,
-                            dynamo.getPort(), dynamo.getPort(), tgtPort,
-                            selection, null));
-
-                    // wait for one node result
+                if (c.getCount() == 0) {
+                    this.waitingKey = selection;
+                    // 还没插入到本地，等待
+                    synchronized (GV.lockOne) {}
                     try {
                         Log.e("LOCK ONE", "WAITING FOR RESULT");
                         GV.lockOne.wait();
@@ -251,15 +259,69 @@ public class SimpleDynamoProvider extends ContentProvider {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    // get result and deal with it
-                    c = this.makeCursor(GV.resultOneMap);
-                    GV.resultOneMap.clear();
-                    c.moveToFirst();
+                    c = this.queryOne(selection);
                 }
+
+            } else {
+                // 本地命令，节点非 perferlist 最后
+                synchronized (GV.lockOne) {}
+                GV.resultOneMap.clear();
+                // 向目标查找
+                GV.msgSendQueue.offer(new NMessage(
+                        NMessage.TYPE.QUERY,
+                        dynamo.getPort(), dynamo.getPort(), tgtPort,
+                        selection, "???"));
+                // wait for one node result
+                try {
+                    Log.e("LOCK ONE", "WAITING FOR RESULT");
+                    GV.lockOne.wait();
+                    Log.e("LOCK ONE", "END LOCK ONE");
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                // get result and deal with it
+                c = this.makeCursor(GV.resultOneMap);
+                GV.resultOneMap.clear();
+
             }
+            c.moveToFirst();
+            return c;
+
+        } else {
+            // 接收到的查询命令
+            if (tgtPort.equals(dynamo.getPort())) {
+                // locate at local
+                c = this.queryOne(selection);
+                if (c.getCount() == 0) {
+                    Log.e("QUERY WAIT", "WAIT FOR INSERT!!!");
+                    this.waitingKey = selection;
+                    // 还没插入到本地，等待
+                    synchronized (GV.lockOne) {}
+                    try {
+                        Log.e("LOCK ONE", "WAITING FOR RESULT");
+                        GV.lockOne.wait();
+                        Log.e("LOCK ONE", "END LOCK ONE");
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    c = this.queryOne(selection);
+                    if (c.getCount() != 0)
+                        Log.e("QUERY WAIT", "INSERT COMPLETED");
+                }
+                // 数据存在
+                Log.e(TAG, "FOUND THE RESULT");
+                c.moveToFirst();
+                String resKey = c.getString(c.getColumnIndex("key"));
+                String resVal = c.getString(c.getColumnIndex("value"));
+                GV.msgSendQueue.offer(new NMessage(
+                        NMessage.TYPE.RESULT_ONE,
+                        cmdPort, dynamo.getPort(), cmdPort,
+                        resKey, resVal));
+            }
+
         }
 
-		return c;
+        return c;
 	}
 
 
@@ -270,9 +332,8 @@ public class SimpleDynamoProvider extends ContentProvider {
         long newRowId = this.dbHelper.getWritableDatabase().insertWithOnConflict(
                 this.dbHelper.TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_IGNORE);
 
-        Log.v("INSERT", "ROW=" + newRowId + "; KV=\'" +
-                values.getAsString("key") + ", " +
-                values.getAsString("value") + "\'");
+        Log.v("INSERT ONE", "ROW= " + newRowId + "; KV= " +
+                values.getAsString("key") + "<>" + values.getAsString("value"));
     }
 
     private Cursor queryOne(String key) {
@@ -285,7 +346,11 @@ public class SimpleDynamoProvider extends ContentProvider {
                 null, null, null, "1");
         c.moveToFirst();
 
-        Log.v("QUERY", "KV=\'" + key + ", " + c.getString(c.getColumnIndex("value")) + "\'");
+        if (c.getCount() == 0) {
+            Log.e("QUERY MISS", "SEARCH FROM PRED NODE");
+        } else {
+            Log.v("QUERY", "KV=\'" + key + ", " + c.getString(c.getColumnIndex("value")) + "\'");
+        }
         return c;
     }
 
@@ -308,7 +373,7 @@ public class SimpleDynamoProvider extends ContentProvider {
         int affectedRows = this.dbHelper.getWritableDatabase().delete(
                 this.dbHelper.TABLE_NAME, selection, selectedKey);
 
-        Log.v("DELETE", "KEY=\'" + key + "\'");
+        Log.v("DELETE ONE", "K= " + key);
         return affectedRows;
     }
 
