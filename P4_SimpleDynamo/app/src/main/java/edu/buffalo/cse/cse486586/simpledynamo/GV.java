@@ -29,5 +29,13 @@ public class GV {
     static HashMap<String, String> resultOneMap = new HashMap<String, String>();
     static HashMap<String, String> resultAllMap = new HashMap<String, String>();
 
+
+    // TODO HANDLE FAILUE: CHANGE TO FALSE
+    static boolean deleteTable = true;
+
+    // Stored info for failed node
+    static ArrayList<NMessage> notifyPredNode = new ArrayList<NMessage>(0);
+    static ArrayList<NMessage> notifySuccNode = new ArrayList<NMessage>(0);
+
 }
 

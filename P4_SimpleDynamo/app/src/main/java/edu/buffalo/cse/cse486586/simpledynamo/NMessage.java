@@ -11,10 +11,8 @@ public class NMessage {
     enum TYPE {
         NONE,
         // Database
-        INSERT_ONE,
-        DELETE_ONE, DELETE_ALL,
-        QUERY_ONE, QUERY_ALL, QUERY_COMLETED,
-        RESULT_ONE, RESULT_ALL,
+        INSERT, DELETE, QUERY,
+        RESULT_ONE, RESULT_ALL, RESULT_ALL_COMLETED,
     }
 
     private String msgID = null;
@@ -31,26 +29,27 @@ public class NMessage {
     private String msgKey = null;
     private String msgVal = null;
 
-    public NMessage() {}
+    public NMessage() {
+        int mid = Integer.parseInt(this.sndPort.substring(2) + "1000") + msgCounter++;
+        this.msgID = mid + "";
+    }
 
-    public NMessage(TYPE msgType, String cmdPort, String tgtPort, String key, String value) {
+    public NMessage(TYPE msgType, String cmdPort, String sndPort, String tgtPort, String key, String value) {
         this();
-        // this.msgID = Integer.parseInt("1" + sndPort + "000") + msgCounter++;
         this.msgType = msgType;
         this.cmdPort = cmdPort;
-        // this.sndPort = null;
+        this.sndPort = sndPort;
         this.tgtPort = tgtPort;
         this.msgKey = key;
         this.msgVal = value;
         this.msgBody = this.msgKey + "<>" + this.msgVal;
     }
 
-    public NMessage(TYPE msgType, String cmdPort, String tgtPort, String msgBody) {
+    public NMessage(TYPE msgType, String cmdPort, String sndPort, String tgtPort, String msgBody) {
         this();
-        // this.msgID = Integer.parseInt("1" + sndPort + "000") + msgCounter++;
         this.msgType = msgType;
         this.cmdPort = cmdPort;
-        // this.sndPort = null;
+        this.sndPort = sndPort;
         this.tgtPort = tgtPort;
         this.msgBody = msgBody;
         this.msgKey = null;
@@ -64,7 +63,7 @@ public class NMessage {
     public String getTgtPort()  { return this.tgtPort; }
     public String getMsgBody () { return this.msgBody; }
     public String getMsgKey()   { return this.msgKey; }
-    public String getMsgValue() { return this.msgVal; }
+    public String getMsgVal() { return this.msgVal; }
 
     public void setMsgID (String msgID)     { this.msgID = msgID; }
     public void setMsgType (TYPE msgType)   { this.msgType = msgType; }

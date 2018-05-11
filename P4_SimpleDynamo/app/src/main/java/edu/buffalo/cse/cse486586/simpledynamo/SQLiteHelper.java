@@ -36,10 +36,10 @@ public class SQLiteHelper extends SQLiteOpenHelper {
             TABLE_NAME + " ( " +
             COL_NAME_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
             COL_NAME_KEY + " STRING NOT NULL UNIQUE, " +
-            COL_NAME_VALUE + " STRING + " +
-            COL_NAME_POSITION + " STRING + " +
-            COL_NAME_VERSION + " STRING + " +
-            COL_NAME_STATUS + " STRING + );";
+            COL_NAME_VALUE + " STRING );";
+            //COL_NAME_POSITION + " STRING + " +
+            //COL_NAME_VERSION + " STRING + " +
+            //COL_NAME_STATUS + " STRING + );";
 
     private static final String SQL_ALTER_ENTRIES = "ALTER TABLE " + TABLE_NAME +
             " ADD COLUMN " + COL_NAME_VALUE + " STRING;";

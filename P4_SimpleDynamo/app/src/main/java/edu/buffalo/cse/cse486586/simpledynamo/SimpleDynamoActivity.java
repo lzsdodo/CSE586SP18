@@ -2,6 +2,7 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 
 import android.annotation.SuppressLint;
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -37,6 +38,7 @@ import android.widget.TextView;
 
 public class SimpleDynamoActivity extends Activity {
 
+    static String TAG = "MAIN";
 	static final int UI = 0x00;
 	static Handler uiHandler;
     static int uiCounter = 0;
@@ -78,13 +80,27 @@ public class SimpleDynamoActivity extends Activity {
             }
         };
 
-        // Task Thread
-        new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        // new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
+        this.init();
+
         this.test();
     }
 
-	@Override
+    public void test() {
+        Log.e(TAG, "Testing");
+    }
+
+    public void init() {
+        Log.d("MAIN", "INIT");
+        // Init Dynamo Instance
+        Dynamo dynamo = Dynamo.getInstance();
+
+        // Task Thread
+        new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
+    }
+
+
+    @Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.simple_dynamo, menu);
@@ -97,9 +113,5 @@ public class SimpleDynamoActivity extends Activity {
 	    // The test will kill process directly, so we can not handle stop on this.
 	}
 
-	public void test() {
-        Log.d("TEST", "Test...");
-        Dynamo dynamo = Dynamo.getInstance();
-    }
 
 }

@@ -52,6 +52,63 @@ public class Dynamo {
     public String getPredID() {return this.predID;}
 
 
+    // TODO WRITE
+    public String getWriteTgtPort(String key) {
+        ArrayList<String> perferIdList = this.getPerferIdList(key);
+        return this.idPortMap.get(perferIdList.get(0));
+    }
+
+    public boolean isLastNodeToWrite(String key) {
+        ArrayList<String> perferIdList = this.getPerferIdList(key);
+        return this.id.equals(perferIdList.get(N-1));
+    }
+
+    // TODO QUERY
+    public String getQueryTgtPort(String key) {
+        ArrayList<String> perferIdList = this.getPerferIdList(key);
+        return this.idPortMap.get(perferIdList.get(N-1));
+    }
+
+    public boolean isLastNodeToQuery(String key) {
+        ArrayList<String> perferIdList = this.getPerferIdList(key);
+        return this.id.equals(perferIdList.get(0));
+    }
+
+
+
+
+    // TODO HANDLE FAIL SEND
+    public boolean detectFromRightNode(String key, String sndPort) {
+        // INSERT AND DELETE
+        ArrayList<String> perferIdList = this.getPerferIdList(key);
+        int index = this.indexOfPerferIdList(key, this.genHash(sndPort));
+
+        if (index >= 0) {
+            // IN PerferID List
+            if (sndPort != this.predPort) {
+                // Skip [1] node
+                // Store in notifyPredNode
+            }
+
+        } else {
+            if (!this.id.equals(perferIdList.get(0))) {
+                // Skip [0] node
+                // Store in notifyPredNode
+            }
+
+        }
+
+        // TODO IF EXIST, UPDATE TO NEW VERSION
+
+        return true;
+    }
+
+
+
+    public int indexOfPerferIdList(String key, String id) {
+        return this.getPerferIdList(key).indexOf(id);
+    }
+
     public ArrayList<String> getPerferIdList(String key) {
         String kid = genHash(key);
         for (int i=1; i<6; i++) {
@@ -64,20 +121,6 @@ public class Dynamo {
         }
         return null;
     }
-
-    public ArrayList<String> getPerferPortList(ArrayList<String> perferIdList) {
-        ArrayList<String> perferPortList = new ArrayList<String>(0);
-        for(int i=0; i<perferIdList.size(); i++) {
-            perferPortList.add(this.idPortMap.get(perferIdList.get(i)));
-        }
-        return perferPortList;
-    }
-
-
-
-
-
-
 
     private void initNodeIDList(ArrayList<String> ports) {
         for(String port: ports) {
