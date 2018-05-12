@@ -17,8 +17,8 @@ public class GV {
     static final Object lockOne = new Object();
     static final Object lockAll = new Object();
 
-    static final int SERVER_PORT = 10000;
-    static final String REMOTE_ADDR = "10.0.2.2";
+
+
     static final ArrayList<String> PORTS = new ArrayList<String>(
             Arrays.asList("5554", "5556", "5558", "5560", "5562"));
     static String MY_PORT = null; // My Port
