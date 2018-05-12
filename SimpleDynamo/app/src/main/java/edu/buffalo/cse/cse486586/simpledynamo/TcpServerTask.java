@@ -18,7 +18,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 
-public class TcpServer extends AsyncTask<Void, Void, Void> {
+public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
     static final String TAG = "SERVER";
     static final int SERVER_PORT = 10000;
@@ -31,6 +31,9 @@ public class TcpServer extends AsyncTask<Void, Void, Void> {
 
     @Override
     protected Void doInBackground (Void... voids) {
+
+        Log.v(TAG, "Start TcpServerTask.");
+
         this.init();
 
         while (true) {
@@ -72,7 +75,6 @@ public class TcpServer extends AsyncTask<Void, Void, Void> {
             this.serverSocket = new ServerSocket();
             this.serverSocket.setReuseAddress(true);
             this.serverSocket.bind(new InetSocketAddress(SERVER_PORT));
-            this.serverSocket.setSoTimeout(100);            // Response Timeout
             this.serverSocket.setReceiveBufferSize(8192);   // Receive Buffer Default 8192
             Log.e(TAG, "Create a ServerSocket listening on: " + serverSocket.getLocalSocketAddress());
 

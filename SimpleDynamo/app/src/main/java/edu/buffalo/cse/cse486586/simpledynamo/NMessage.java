@@ -1,62 +1,55 @@
 package edu.buffalo.cse.cse486586.simpledynamo;
 
-
 import android.util.Log;
 
 public class NMessage {
     // Msg: "msgID::msgType::cmdPort::sndPort::tgtPort::msgBody"
-
-    static int msgCounter = 0;
+    // Msg: "msgType::cmdPort::sndPort::tgtPort::msgBody"
 
     enum TYPE {
         NONE,
-        // Database
         INSERT, DELETE, QUERY,
         RESULT_ONE, RESULT_ALL, RESULT_ALL_COMLETED,
     }
 
-    private String msgID = null;
-    private TYPE msgType = TYPE.NONE;
+    static int msgCounter = 0;
 
+    // private String msgID = null;
+    private TYPE   msgType = TYPE.NONE;
     private String cmdPort = null; // command port
     private String sndPort = null; // sender port
     private String tgtPort = null; // target port
-
-    // msgBody: "msgKey<>msgVal"
-    private String msgBody = null;
-
-    // msgBody: "Operation"
-    private String msgKey = null;
-    private String msgVal = null;
+    private String msgBody = null; // msgBody: "msgKey<>msgVal"
+    private String msgKey  = null;
+    private String msgVal  = null;
 
     public NMessage() {
-        int mid = Integer.parseInt(this.sndPort.substring(2) + "1000") + msgCounter++;
-        this.msgID = mid + "";
+        // int mid = Integer.parseInt(this.sndPort.substring(2) + "1000") + msgCounter++;
+        // this.msgID = mid + "";
+        this.sndPort = GV.MY_PORT;
     }
 
-    public NMessage(TYPE msgType, String cmdPort, String sndPort, String tgtPort, String key, String value) {
+    public NMessage(TYPE msgType, String cmdPort, String tgtPort, String key, String value) {
         this();
         this.msgType = msgType;
         this.cmdPort = cmdPort;
-        this.sndPort = sndPort;
         this.tgtPort = tgtPort;
         this.msgKey = key;
         this.msgVal = value;
         this.msgBody = this.msgKey + "<>" + this.msgVal;
     }
 
-    public NMessage(TYPE msgType, String cmdPort, String sndPort, String tgtPort, String msgBody) {
+    public NMessage(TYPE msgType, String cmdPort, String tgtPort, String msgBody) {
         this();
         this.msgType = msgType;
         this.cmdPort = cmdPort;
-        this.sndPort = sndPort;
         this.tgtPort = tgtPort;
         this.msgBody = msgBody;
         this.msgKey = null;
         this.msgVal = null;
     }
 
-    public String getMsgID()    { return this.msgID; }
+    // public String getMsgID()    { return this.msgID; }
     public TYPE getMsgType()    { return this.msgType; }
     public String getCmdPort()  { return this.cmdPort; }
     public String getSndPort()  { return this.sndPort; }
@@ -65,7 +58,7 @@ public class NMessage {
     public String getMsgKey()   { return this.msgKey; }
     public String getMsgVal() { return this.msgVal; }
 
-    public void setMsgID (String msgID)     { this.msgID = msgID; }
+    // public void setMsgID (String msgID)     { this.msgID = msgID; }
     public void setMsgType (TYPE msgType)   { this.msgType = msgType; }
     public void setCmdPort (String cmdPort) { this.cmdPort = cmdPort; }
     public void setSndPort (String sndPort) { this.sndPort = sndPort; }
@@ -80,12 +73,12 @@ public class NMessage {
         String[] msgInfo = s.split("::");
         NMessage msg = new NMessage();
 
-        msg.setMsgID(msgInfo[0]);
-        msg.setMsgType(TYPE.valueOf(msgInfo[1]));
-        msg.setCmdPort(msgInfo[2]);
-        msg.setSndPort(msgInfo[3]);
-        msg.setTgtPort(msgInfo[4]);
-        msg.setMsgBody(msgInfo[5]);
+        // msg.setMsgID(msgInfo[0]);
+        msg.setMsgType(TYPE.valueOf(msgInfo[0]));
+        msg.setCmdPort(msgInfo[1]);
+        msg.setSndPort(msgInfo[2]);
+        msg.setTgtPort(msgInfo[3]);
+        msg.setMsgBody(msgInfo[4]);
 
         String[] kv = msg.getMsgBody().split("<>");
         if (kv.length == 2) {
@@ -100,7 +93,8 @@ public class NMessage {
     }
 
     public String toString() {
-        return this.msgID + "::" + this.msgType.name() + "::" +
+        // this.msgID + "::" +
+        return this.msgType.name() + "::" +
                 this.cmdPort + "::" + this.sndPort + "::" + this.tgtPort + "::" +
                 this.msgBody;
     }

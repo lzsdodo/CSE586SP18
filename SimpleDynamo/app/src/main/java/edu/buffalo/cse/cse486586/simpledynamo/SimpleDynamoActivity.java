@@ -17,9 +17,9 @@ import android.widget.TextView;
 public class SimpleDynamoActivity extends Activity {
 
 	static String TAG = "MAIN";
-
+    static final String URI = "edu.buffalo.cse.cse486586.simpledynamo.provider";
 	static final int UI = 0x00;
-	static UiHandler uiHandler;
+	static Handler uiHandler;
 	static int uiCounter;
 
 	public TextView mTextView;
@@ -29,40 +29,57 @@ public class SimpleDynamoActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_simple_dynamo);
-    
-		TextView tv = (TextView) findViewById(R.id.textView1);
-        tv.setMovementMethod(new ScrollingMovementMethod());
 
-        Log.d(TAG, "INIT");
+        this.mTextView = (TextView) findViewById(R.id.textView1);
+        this.mTextView.setMovementMethod(new ScrollingMovementMethod());
+
+        Log.v(TAG, "INIT");
 
         TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         GV.MY_PORT = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
-        Log.d(TAG, "PORT = " + GV.MY_PORT);
+        Log.v(TAG, "PORT = " + GV.MY_PORT);
 
-        GV.dbUri = new Uri.Builder().scheme("content").authority(GV.URI).build();
+        GV.dbUri = new Uri.Builder().scheme("content").authority(URI).build();
         this.mCR = getContentResolver();
-        Log.d(TAG, "DATABASE");
+        Log.v(TAG, "DATABASE");
 
         // UI
         uiCounter = 0;
         uiHandler = new UiHandler();
-        Log.d(TAG, "UI HANDLER");
+        Log.v(TAG, "UI HANDLER");
+
+        // Task Thread
+        new TcpServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        new TcpClientTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        new ServiceTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
+        Log.v(TAG, "SERVER, CLIENT and SERVICE THREAD");
 
         // Init Dynamo Instance
         Dynamo dynamo = Dynamo.getInstance();
-        Log.d(TAG, "DYNAMO");
-
-        // Task Thread
-        new TcpServer().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        new TcpClient().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        // new QueueTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
-        Log.d(TAG, "SERVER ADN CLIENT THREAD");
+        Log.v(TAG, "DYNAMO");
 
         this.test();
 	}
 
     private void test() {
         Log.e(TAG, "Testing");
+        this.testTCP();
+    }
+
+    private void testTCP() {
+        long lastTime = System.currentTimeMillis();
+        Log.e(TAG, "test: " + lastTime );
+        while (true) {
+            if (System.currentTimeMillis() > lastTime + 3000) {
+                Dynamo dynamo = Dynamo.getInstance();
+                GV.msgSendQueue.offer(new NMessage(
+                        NMessage.TYPE.NONE,
+                        dynamo.getPort(), dynamo.getPort(),
+                        "TEST_KEY", "TEST_VALUE"));
+                break;
+            }
+        }
+        Log.e(TAG, "test finish: " + System.currentTimeMillis());
     }
 
 	@Override

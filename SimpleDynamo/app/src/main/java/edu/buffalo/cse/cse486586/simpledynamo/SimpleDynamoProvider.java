@@ -13,23 +13,28 @@ public class SimpleDynamoProvider extends ContentProvider {
 
 
 	@Override
-	public Cursor query(Uri uri, String[] projection, String selection,
+	synchronized public Cursor query(Uri uri, String[] projection, String selection,
 						String[] selectionArgs, String sortOrder) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public Uri insert(Uri uri, ContentValues values) {
+    synchronized public Uri insert(Uri uri, ContentValues values) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public int delete(Uri uri, String selection, String[] selectionArgs) {
+    synchronized public int delete(Uri uri, String selection, String[] selectionArgs) {
 		// TODO Auto-generated method stub
 		return 0;
 	}
+
+
+
+
+
 
 
 
@@ -38,7 +43,6 @@ public class SimpleDynamoProvider extends ContentProvider {
 		// TODO Auto-generated method stub
 		return false;
 	}
-
 
 
 	private String genHash(String input) throws NoSuchAlgorithmException {

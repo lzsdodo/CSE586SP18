@@ -5,6 +5,7 @@ import android.util.Log;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Formatter;
 import java.util.HashMap;
@@ -13,6 +14,8 @@ public class Dynamo {
 
     static final String TAG = "DYNAMO";
     static final int N = 3;
+    static final ArrayList<String> PORTS = new ArrayList<String>(
+            Arrays.asList("5554", "5556", "5558", "5560", "5562"));
 
     private static Dynamo instance;
 
@@ -29,8 +32,8 @@ public class Dynamo {
     private Dynamo() {
         this.port = GV.MY_PORT;
         this.id = this.genHash(this.port);
-        initIdPortMap(GV.PORTS);
-        initNodeIDList(GV.PORTS);
+        initIdPortMap(PORTS);
+        initNodeIDList(PORTS);
         initNeighbourInfo();
         Log.e(TAG, "Dynamo Info: \n" + "PRED: " + this.getPredPort() + "::" + this.getPredID() + "\n" +
                     "NODE: " + this.getPort() + "::" + this.getId() + "\n" +

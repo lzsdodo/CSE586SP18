@@ -17,24 +17,28 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 
-public class TcpClient extends AsyncTask<Void, Void, Void> {
+public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
     static final String TAG = "CLIENT";
     static final String REMOTE_ADDR = "10.0.2.2";
 
-    private SocketAddress socketAddr;
     private Socket socket;
     private OutputStream out;
     private InputStream in;
     private boolean connFlag;
 
+
     @Override
     protected Void doInBackground (Void... voids) {
 
+        Log.v(TAG, "Start TcpClientTask.");
+
+        this.init();
+
         while (true) {
-            this.init();
 
             while (!GV.msgSendQueue.isEmpty()) {
+
                 NMessage msg = GV.msgSendQueue.poll();
                 String msgToSend = msg.toString();
                 String tgtPort = msg.getTgtPort();
@@ -42,19 +46,21 @@ public class TcpClient extends AsyncTask<Void, Void, Void> {
                 Log.e("HANDLE SEND MSG", "" + msgToSend);
 
                 try {
-                    this.socketAddr = new InetSocketAddress(REMOTE_ADDR, remotePort);
-                    this.socket.connect(socketAddr); // Connect Timeout
+                    this.socket.connect(new InetSocketAddress(REMOTE_ADDR, remotePort));
+
 
                     this.connFlag = false;
                     if (this.socket.isConnected()) {
-                        Log.v(TAG, "CONNECTED SERVER: " + this.socket.getRemoteSocketAddress());
+                        this.socket.setSendBufferSize(8192);    // Send Buff Default 8192
+                        this.socket.setSoTimeout(100);          // Response Timeout
+                        Log.v(TAG, "CONN SERVER: " + this.socket.getRemoteSocketAddress());
 
                         this.in = socket.getInputStream();
                         this.out = socket.getOutputStream();
 
                         this.out.write(msgToSend.getBytes());
                         this.out.flush();
-                        Log.v(TAG, "MSG: " + msgToSend + " SENT.");
+                        Log.v(TAG, "SENT MSG: " + msgToSend);
 
                         this.closeIO();
                         this.connFlag = true;
@@ -90,13 +96,6 @@ public class TcpClient extends AsyncTask<Void, Void, Void> {
     private void init() {
         this.socket = new Socket();
         this.connFlag = false;
-
-        try {
-            this.socket.setSendBufferSize(8192); // Send Buff Default 8192
-            this.socket.setSoTimeout(100); // Response Timeout
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
         // Log.v(TAG, "CLIENT SOCKET IO CLOSED.");
     }
 
@@ -115,7 +114,8 @@ public class TcpClient extends AsyncTask<Void, Void, Void> {
 
     private void handleDisconn(String tgtPort) {
         Log.e(TAG, "DISCONN DEVICE: " + tgtPort);
-        this.refreshUI("DISCONN DEVICE: " + tgtPort);
+        String str = "DISCONN DEVICE: " + tgtPort;
+        this.refreshUI(str);
     }
 
     private void refreshUI(String str) {
