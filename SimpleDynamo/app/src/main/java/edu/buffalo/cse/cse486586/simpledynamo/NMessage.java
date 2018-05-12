@@ -10,6 +10,7 @@ public class NMessage {
         NONE,
         INSERT, DELETE, QUERY,
         RESULT_ONE, RESULT_ALL, RESULT_ALL_COMLETED,
+        UPDATE_DATA, UPDATE_COMPLETED,
     }
 
     static int msgCounter = 0;

@@ -24,6 +24,7 @@ public class SimpleDynamoActivity extends Activity {
 
 	public TextView mTextView;
 	public ContentResolver mCR;
+	public Dynamo dynamo;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -32,34 +33,51 @@ public class SimpleDynamoActivity extends Activity {
 
         this.mTextView = (TextView) findViewById(R.id.textView1);
         this.mTextView.setMovementMethod(new ScrollingMovementMethod());
-
-        Log.v(TAG, "INIT");
+        mTextView.append("INIT UI\n");
 
         TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         GV.MY_PORT = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
-        Log.v(TAG, "PORT = " + GV.MY_PORT);
+        mTextView.append("INIT MY PORT: " + GV.MY_PORT + "\n");
 
         GV.dbUri = new Uri.Builder().scheme("content").authority(URI).build();
         this.mCR = getContentResolver();
-        Log.v(TAG, "DATABASE");
+        mTextView.append("INIT DATABASE\n");
 
         // UI
         uiCounter = 0;
         uiHandler = new UiHandler();
-        Log.v(TAG, "UI HANDLER");
+        mTextView.append("INIT UI HANDLER\n");
 
         // Task Thread
         new TcpServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new TcpClientTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new ServiceTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
-        Log.v(TAG, "SERVER, CLIENT and SERVICE THREAD");
+        mTextView.append("INIT SERVER CLIENT SERVICE TASK\n");
 
         // Init Dynamo Instance
-        Dynamo dynamo = Dynamo.getInstance();
-        Log.v(TAG, "DYNAMO");
+        this.dynamo = Dynamo.getInstance();
+        mTextView.append("INIT DYNAMO\n");
 
-        this.test();
+        // Update Lost Data
+        this.updateLostData();
+
+        //this.test();
 	}
+
+	private void updateLostData() {
+        this.mCR.query(GV.dbUri, null, "#", null, null);
+        if (GV.dbRows > 0) {
+            mTextView.append("UPDATE DATA... (REMAIN: " + GV.dbRows + ")\n");
+
+            // Send msg to neighbour
+            GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_DATA,
+                    this.dynamo.getPort(), this.dynamo.getSuccPort(), "$", "$"));
+            GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_DATA,
+                    this.dynamo.getPort(), this.dynamo.getPredPort(), "$", "$"));
+        } else {
+            mTextView.append("INIT DATA STATUS");
+        }
+    }
 
     private void test() {
         Log.e(TAG, "Testing");
@@ -73,9 +91,9 @@ public class SimpleDynamoActivity extends Activity {
             if (System.currentTimeMillis() > lastTime + 3000) {
                 Dynamo dynamo = Dynamo.getInstance();
                 GV.msgSendQueue.offer(new NMessage(
-                        NMessage.TYPE.NONE,
+                        NMessage.TYPE.INSERT,
                         dynamo.getPort(), dynamo.getPort(),
-                        "TEST_KEY", "TEST_VALUE"));
+                        "xo1R4fhe37p0ee81msccP3tRxB2LrNKJ", "TEST_VALUE"));
                 break;
             }
         }

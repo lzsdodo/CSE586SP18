@@ -28,6 +28,7 @@ public class GV {
 
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
+    static int dbRows = 0;
     static boolean deleteTable = true;
 
 }

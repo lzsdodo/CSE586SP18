@@ -55,40 +55,35 @@ public class Dynamo {
     public String getPredID() {return this.predID;}
 
 
-    // TODO WRITE
-    public String getWriteTgtPort(String key) {
-        ArrayList<String> perferIdList = this.getPerferIdList(key);
-        return this.idPortMap.get(perferIdList.get(0));
+
+    public String getWriteTgtPort(String kid) {
+        return this.idPortMap.get(this.getPerferIdList(kid).get(0));
     }
 
-    public boolean isLastNodeToWrite(String key) {
-        ArrayList<String> perferIdList = this.getPerferIdList(key);
-        return this.id.equals(perferIdList.get(N-1));
+    public boolean isLastNodeToWrite(String kid) {
+        return this.id.equals(this.getPerferIdList(kid).get(N-1));
     }
 
-    // TODO QUERY
-    public String getQueryTgtPort(String key) {
-        ArrayList<String> perferIdList = this.getPerferIdList(key);
-        return this.idPortMap.get(perferIdList.get(N-1));
+    public String getQueryTgtPort(String kid) {
+        return this.idPortMap.get(this.getPerferIdList(kid).get(N-1));
     }
 
-    public boolean isLastNodeToQuery(String key) {
-        ArrayList<String> perferIdList = this.getPerferIdList(key);
-        return this.id.equals(perferIdList.get(0));
+    public boolean isLastNodeToQuery(String kid) {
+        return this.id.equals(this.getPerferIdList(kid).get(0));
     }
-
 
 
 
     // TODO HANDLE FAIL SEND
-    public boolean detectFromRightNode(String key, String sndPort) {
+    public boolean detectFromRightNode(String kid, String sndPort) {
         // INSERT AND DELETE
-        ArrayList<String> perferIdList = this.getPerferIdList(key);
-        int index = this.indexOfPerferIdList(key, this.genHash(sndPort));
+        ArrayList<String> perferIdList = this.getPerferIdList(kid);
+        int sndIndex = perferIdList.indexOf(this.genHash(sndPort));
+        int keyIndex = perferIdList.indexOf(kid);
 
-        if (index >= 0) {
+        if (sndIndex >= 0) {
             // IN PerferID List
-            if (sndPort != this.predPort) {
+            if (!sndPort.equals(this.predPort)) {
                 // Skip [1] node
                 // Store in notifyPredNode
             }
@@ -102,23 +97,21 @@ public class Dynamo {
         }
 
         // TODO IF EXIST, UPDATE TO NEW VERSION
-
         return true;
     }
 
 
 
-    public int indexOfPerferIdList(String key, String id) {
-        return this.getPerferIdList(key).indexOf(id);
+    public int indexOfPerferIdList(String kid) {
+        return this.getPerferIdList(kid).indexOf(kid);
     }
 
-    public ArrayList<String> getPerferIdList(String key) {
-        String kid = genHash(key);
+    public ArrayList<String> getPerferIdList(String kid) {
         for (int i=1; i<6; i++) {
             if (inInterval(kid, this.nodeIdList.get(i-1), this.nodeIdList.get(i))) {
                 ArrayList<String> perferIdList = new ArrayList<String>(0);
                 perferIdList.addAll(this.nodeIdList.subList(i, i+N));
-                Log.d("TAG", kid + " -> " + perferIdList.toString());
+                Log.d(TAG, kid + " -> " + perferIdList.toString());
                 return perferIdList;
             }
         }
