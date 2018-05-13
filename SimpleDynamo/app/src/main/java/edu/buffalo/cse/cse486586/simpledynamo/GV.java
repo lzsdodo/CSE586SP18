@@ -13,6 +13,7 @@ public class GV {
 
     static Uri dbUri = null;
     static String MY_PORT = null;
+    static String MY_PORT_INFO = null;
     static int msgCounter = 0;
 
     static Queue<NMessage> msgRecvQueue = new LinkedList<NMessage>();
@@ -32,7 +33,7 @@ public class GV {
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
     static int dbRows = 0;
-    static boolean deleteTable = false;
+    static boolean deleteTable = true;
 
     static String lostPort = null;
 //    static boolean updatePred = false;

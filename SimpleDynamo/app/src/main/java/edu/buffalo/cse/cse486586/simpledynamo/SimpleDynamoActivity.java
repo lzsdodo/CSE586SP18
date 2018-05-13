@@ -61,8 +61,8 @@ public class SimpleDynamoActivity extends Activity {
         mTextView.append("INIT SERVER CLIENT SERVICE TASK\n");
 
         // PORT INFO
-        mTextView.append("PRED: " + dynamo.getPredPort() + "; SELF: " +
-                GV.MY_PORT + "; SUCC: " + dynamo.getSuccPort() + "\n");
+        GV.MY_PORT_INFO = "PRED: " + dynamo.getPredPort() + "; SELF: " + GV.MY_PORT + "; SUCC: " + dynamo.getSuccPort();
+        mTextView.append(GV.MY_PORT_INFO + "\n");
 
         // Update Lost Data
         this.updateLostData();
@@ -98,7 +98,7 @@ public class SimpleDynamoActivity extends Activity {
         }
         Log.e(TAG, "test finish: " + System.currentTimeMillis());
     }
-    
+
     @Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.

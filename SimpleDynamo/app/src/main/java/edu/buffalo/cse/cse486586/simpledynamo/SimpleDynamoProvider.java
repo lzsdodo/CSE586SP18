@@ -68,7 +68,7 @@ public class SimpleDynamoProvider extends ContentProvider {
                 }
                 // not equal to "@" or "*"
                 else {
-                    String tgtPort = dynamo.getTgtPort(kid, "QUERY");
+                    String tgtPort = dynamo.getFirstPort(kid, "QUERY");
                     Log.d("L-QUERY", "2. QUERY " + key);
 
                     if (tgtPort.equals(GV.MY_PORT)) {
@@ -174,7 +174,7 @@ public class SimpleDynamoProvider extends ContentProvider {
         String key = cv.getAsString("key");
         String val = cv.getAsString("value");
         String kid = this.genHash(key);
-        String tgtPort = dynamo.getTgtPort(kid, "INSERT");
+        String tgtPort = dynamo.getFirstPort(kid, "INSERT");
 
         /* Local Command */
         // Just send msg to tgt and do nothing
@@ -212,7 +212,7 @@ public class SimpleDynamoProvider extends ContentProvider {
         int affectedRows = 0;
         Dynamo dynamo = Dynamo.getInstance();
         String kid = this.genHash(key);
-        String tgtPort = dynamo.getTgtPort(kid, "DELETE");
+        String tgtPort = dynamo.getFirstPort(kid, "DELETE");
 
         /* Local Command */
         // Just send msg to tgt and do nothing

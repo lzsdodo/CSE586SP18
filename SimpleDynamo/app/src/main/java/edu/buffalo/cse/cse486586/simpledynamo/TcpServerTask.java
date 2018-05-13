@@ -9,9 +9,8 @@ import org.apache.http.conn.ConnectTimeoutException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -20,14 +19,14 @@ import java.net.UnknownHostException;
 
 public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
-    static final String TAG = "SERVER";
+    static final String TAG = "SERVER TASK";
     static final int SERVER_PORT = 10000;
 
     private ServerSocket serverSocket;
     private Socket socket;
-    private OutputStream out;
-    private InputStream in;
-    private BufferedReader br;
+
+    private PrintWriter out;
+    private BufferedReader in;
 
     @Override
     protected Void doInBackground (Void... voids) {
@@ -35,54 +34,56 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         Log.v(TAG, "Start TcpServerTask.");
         this.init();
 
-        try {
-            while (true) {
-
+        while (true) {
+            try {
                 this.socket = this.serverSocket.accept();
+            } catch (ConnectTimeoutException e) {
+                Log.e(TAG, "ServerTask ConnectTimeoutException");
+                e.printStackTrace();
+            } catch (IOException e) {
+                Log.e(TAG, "ServerTask IOException");
+                e.printStackTrace();
+            }
 
-                if (this.socket != null) {
-                    this.socket.setOOBInline(true);
-                    this.socket.setTrafficClass(0x04|0x10);
-                    this.socket.setReceiveBufferSize(8*1024); // Receive Buffer Default 8192
+            try {
+                if (this.socket!= null) {
                     Log.d(TAG, "ACCEPTED CONN: " + this.socket.getRemoteSocketAddress().toString());
+                    this.socket.setTrafficClass(0x04 | 0x10);
+                    this.socket.setReceiveBufferSize(8 * 1024);
 
-                    this.out = this.socket.getOutputStream();
-                    this.in = this.socket.getInputStream();
-                    this.br = new BufferedReader(new InputStreamReader(in));
+                    this.out = new PrintWriter(this.socket.getOutputStream());
+                    this.in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
 
-                    String msgRecvStr = this.br.readLine().trim();
-                    Log.v(TAG, "RECV MSG: " + msgRecvStr);
+                    String msgRecvStr = this.in.readLine().trim();
+                    Log.d("RECV MSG", "IN: " + msgRecvStr);
                     this.handleMsg(NMessage.parseMsg(msgRecvStr));
+                }
 
-                    this.br.close();
+            } catch (UnknownHostException e) {
+                Log.e(TAG, "ServerTask UnknownHostException");
+                e.printStackTrace();
+            } catch (SocketTimeoutException e) {
+                // Socket's soTimeout method is timeout for read/write, not for the connection
+                // Socket's IO is blocking
+                // We should close by ourselves when we catch the exception
+                Log.e(TAG, "ServerTask SocketTimeoutException");
+                e.printStackTrace();
+            } catch (IOException e) {
+                Log.e(TAG, "ServerTask IOException");
+                e.printStackTrace();
+
+            } finally {
+                try {
                     this.in.close();
                     this.out.close();
                     this.socket.close();
                     // Log.v(TAG, "SERVER SOCKET IO CLOSED.");
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
-
-        } catch (ConnectTimeoutException e) {
-            Log.e(TAG, "ServerTask ConnectTimeoutException");
-            e.printStackTrace();
-        } catch (SocketTimeoutException e) {
-            // Socket's soTimeout method is timeout for read/write, not for the connection
-            // Socket's IO is blocking
-            // We should close by ourselves when we catch the exception
-            Log.e(TAG, "ServerTask SocketTimeoutException");
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
-            Log.e(TAG, "ServerTask UnknownHostException");
-            e.printStackTrace();
-        } catch (IOException e) {
-            Log.e(TAG, "ServerTask IOException");
-            e.printStackTrace();
-        } catch (Exception e) {
-            Log.e(TAG, "ServerTask Exception.");
-            e.printStackTrace();
         }
 
-        return null;
     }
 
     private void init() {
@@ -98,6 +99,9 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
     }
 
     private void handleMsg(NMessage msgRecv) {
+        if (msgRecv.getSndPort().equals(GV.lostPort)) {
+            GV.lostPort = null;
+        }
 
         switch (msgRecv.getMsgType()) {
             case LOST:
