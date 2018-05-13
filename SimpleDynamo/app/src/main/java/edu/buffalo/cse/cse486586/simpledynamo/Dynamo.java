@@ -56,22 +56,37 @@ public class Dynamo {
 
 
 
-    public String getWriteTgtPort(String kid) {
-        return this.idPortMap.get(this.getPerferIdList(kid).get(0));
+    public String getTgtPort(String kid, String op) {
+        ArrayList<String> perferIdList = getPerferIdList(kid);
+        Log.d(TAG, this.port + " in? " + this.portsOfPerferIdList(perferIdList).toString()+ " ~" + kid);
+
+        if (op.equals("INSERT") || op.equals("DELETE")) {
+            return this.idPortMap.get(perferIdList.get(0));
+
+        } else if (op.equals("QUERY")) {
+            return this.idPortMap.get(perferIdList.get(N-1));
+
+        } else {
+            Log.e(TAG, "ERROR OPERATION");
+            return null;
+        }
     }
 
-    public boolean isLastNodeToWrite(String kid) {
-        return this.id.equals(this.getPerferIdList(kid).get(N-1));
-    }
+    public boolean isLastNode(String kid, String op) {
+        ArrayList<String> perferIdList = getPerferIdList(kid);
+        Log.d(TAG, this.port + " in? " + this.portsOfPerferIdList(perferIdList).toString() + " ~" + kid);
 
-    public String getQueryTgtPort(String kid) {
-        return this.idPortMap.get(this.getPerferIdList(kid).get(N-1));
-    }
+        if (op.equals("INSERT") || op.equals("DELETE")) {
+            return this.id.equals(perferIdList.get(N-1));
 
-    public boolean isLastNodeToQuery(String kid) {
-        return this.id.equals(this.getPerferIdList(kid).get(0));
-    }
+        } else if (op.equals("QUERY")) {
+            return this.id.equals(perferIdList.get(0));
 
+        } else {
+            Log.e(TAG, "ERROR OPERATION");
+            return true;
+        }
+    }
 
 
     // TODO HANDLE FAIL SEND
@@ -102,10 +117,6 @@ public class Dynamo {
 
 
 
-    public int indexOfPerferIdList(String kid) {
-        return this.getPerferIdList(kid).indexOf(kid);
-    }
-
     public ArrayList<String> getPerferIdList(String kid) {
         for (int i=1; i<6; i++) {
             if (inInterval(kid, this.nodeIdList.get(i-1), this.nodeIdList.get(i))) {
@@ -116,6 +127,14 @@ public class Dynamo {
             }
         }
         return null;
+    }
+
+    public ArrayList<String> portsOfPerferIdList(ArrayList<String> perferIdList) {
+        ArrayList<String> ports = new ArrayList<String>();
+        for(String id: perferIdList) {
+            ports.add(this.idPortMap.get(id));
+        }
+        return ports;
     }
 
     private void initNodeIDList(ArrayList<String> ports) {

@@ -75,7 +75,7 @@ public class SimpleDynamoActivity extends Activity {
             GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_DATA,
                     this.dynamo.getPort(), this.dynamo.getPredPort(), "$", "$"));
         } else {
-            mTextView.append("INIT DATA STATUS");
+            mTextView.append("INIT DATA STATUS\n");
         }
     }
 

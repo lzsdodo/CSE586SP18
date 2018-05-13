@@ -47,6 +47,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                             Log.d("HANDLE RESULT ONE", msg.getMsgBody());
                             GV.resultOneMap.put(msg.getMsgKey(), msg.getMsgVal());
                             // this.releaseLock("ONE");
+                            GV.needWaiting = false;
                             break;
 
                         case RESULT_ALL:
@@ -57,6 +58,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                         case RESULT_ALL_COMLETED:
                             Log.e("HANDLE QUERY COMPLETED", msg.toString());
                             //this.releaseLock("ALL");
+                            GV.needWaiting = false;
                             break;
 
                         case UPDATE_DATA:break;
