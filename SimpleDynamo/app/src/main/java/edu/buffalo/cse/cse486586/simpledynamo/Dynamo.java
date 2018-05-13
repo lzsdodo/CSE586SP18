@@ -87,6 +87,13 @@ public class Dynamo {
         }
     }
 
+    public String getSuccPortOfPort(String port) {
+        String pid = this.genHash(port);
+        int pidIndex = this.nodeIdList.indexOf(pid);
+        String succId = this.nodeIdList.get(pidIndex+1);
+        return this.idPortMap.get(succId);
+    }
+
     // TODO HANDLE FAIL SEND
     public boolean detectFail(String key, String sndPort, String tgtPort) {
         // INSERT AND DELETE
@@ -107,14 +114,6 @@ public class Dynamo {
 
         // TODO IF EXIST, UPDATE TO NEW VERSION
         return false;
-    }
-
-
-    public String getSuccPortOfPort(String port) {
-        String pid = this.genHash(port);
-        int index = this.nodeIdList.indexOf(pid);
-        String succId = this.nodeIdList.get(index+1);
-        return this.idPortMap.get(succId);
     }
 
     public ArrayList<String> getPerferIdList(String kid) {

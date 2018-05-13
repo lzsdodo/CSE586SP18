@@ -33,30 +33,30 @@ public class SimpleDynamoActivity extends Activity {
 
         this.mTextView = (TextView) findViewById(R.id.textView1);
         this.mTextView.setMovementMethod(new ScrollingMovementMethod());
-        mTextView.append("INIT UI\n");
+        this.refreshUI("INIT UI");
 
         TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         GV.MY_PORT = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
-        mTextView.append("INIT MY PORT: " + GV.MY_PORT + "\n");
+        this.refreshUI("INIT MY PORT: " + GV.MY_PORT);
+
+        // Init Dynamo Instance
+        this.dynamo = Dynamo.getInstance();
+        this.refreshUI("INIT DYNAMO");
 
         GV.dbUri = new Uri.Builder().scheme("content").authority(URI).build();
         this.mCR = getContentResolver();
-        mTextView.append("INIT DATABASE\n");
+        this.refreshUI("INIT DATABASE");
 
         // UI
         uiCounter = 0;
         uiHandler = new UiHandler();
-        mTextView.append("INIT UI HANDLER\n");
-
-        // Init Dynamo Instance
-        this.dynamo = Dynamo.getInstance();
-        mTextView.append("INIT DYNAMO\n");
+        this.refreshUI("INIT UI HANDLER");
 
         // Task Thread
         new ServiceTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
         new TcpServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new TcpClientTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        mTextView.append("INIT SERVER CLIENT SERVICE TASK\n");
+        this.refreshUI("INIT TASK");
 
         // Update Lost Data
         this.updateLostData();
@@ -66,14 +66,14 @@ public class SimpleDynamoActivity extends Activity {
 
 	private void updateLostData() {
         // Send msg to neighbour
-        this.mCR.query(GV.dbUri, null, "#", null, null);
-        mTextView.append("UPDATE DATA... (REMAIN: " + GV.dbRows + ")\n");
-        GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
-                GV.MY_PORT, this.dynamo.getSuccPort(), "$$$"));
-        GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
-                GV.MY_PORT, this.dynamo.getPredPort(), "$$$"));
+        this.refreshUI("RECOVER: " + "PRED=" + this.dynamo.getPredPort() +
+                "; SELF=" + GV.MY_PORT + "\n" + "; SUCC=" + this.dynamo.getSuccPort() + "\n");
 
-        Log.e(TAG, "SEND RECOVERY");
+        GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
+                GV.MY_PORT, this.dynamo.getSuccPort(),"$$$", "$$$"));
+
+        GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
+                GV.MY_PORT, this.dynamo.getPredPort(), "$$$", "$$$"));
     }
 
     private void test() {
@@ -109,6 +109,10 @@ public class SimpleDynamoActivity extends Activity {
 	    Log.v("Test", "onStop()");
 	}
 
+    public void refreshUI(String str) {
+        this.mTextView.append(str + "\n");
+    }
+
 	public class UiHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
@@ -119,7 +123,7 @@ public class SimpleDynamoActivity extends Activity {
                     if (uiCounter > 50) {
                         mTextView.setText("CLEAR UI...\n");
                     }
-                    mTextView.append(msg.obj + "\n");
+                    refreshUI(msg.obj.toString() + "\n");
                     break;
                 default: break;
             }

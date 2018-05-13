@@ -16,8 +16,8 @@ public class GV {
     static Queue<NMessage> msgRecvQueue = new LinkedList<NMessage>();
     static Queue<NMessage> msgSendQueue = new LinkedList<NMessage>();
 
-    static HashMap<String, String> resultOneMap = new HashMap<String, String>();
-    static HashMap<String, String> resultAllMap = new HashMap<String, String>();
+    static HashMap<String, String> resultOneMap = new HashMap<String, String>(0);
+    static HashMap<String, String> resultAllMap = new HashMap<String, String>(0);
 
     // Stored info for failed node
     static Queue<NMessage> notifyPredNode = new LinkedList<NMessage>();
@@ -29,10 +29,12 @@ public class GV {
     static boolean needWaiting;
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
+    static boolean deleteTable = false;
     static int dbRows = 0;
-    static boolean deleteTable = true;
 
     static String lostPort = null;
-    static int updateTimes = 0;
+    static boolean updatePred = false;
+    static boolean updateSucc = false;
+    static boolean updateCompleted = false;
 }
 

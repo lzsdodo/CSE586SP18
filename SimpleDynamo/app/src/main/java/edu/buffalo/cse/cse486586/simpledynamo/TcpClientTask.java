@@ -16,6 +16,8 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 
 /*
  * Reference:
@@ -45,7 +47,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
     private boolean connFlag = false;
     private boolean bocastLost = false;
     private boolean skipMsg = false;
-    private NMessage reSendMsg = null;
+    private Queue<NMessage> reSendMsgQueue = new LinkedList<NMessage>();;
 
     @Override
     protected Void doInBackground (Void... voids) {
@@ -57,20 +59,21 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         while (true) {
 
             if (this.bocastLost) {
-                if (this.reSendMsg != null) {
-                    this.sendMsg(this.reSendMsg);
-                    this.reSendMsg = null;
+                Log.e("BOCAST", "LOST: " + GV.lostPort);
+                while (!this.reSendMsgQueue.isEmpty()) {
+                    NMessage resendMsg = this.reSendMsgQueue.poll();
+                    this.sendMsg(resendMsg);
                 }
                 this.bocastLost();
                 this.bocastLost = false;
             }
 
             while (!GV.updateSendQueue.isEmpty()) {
-                NMessage msg = GV.updateSendQueue.poll();
-                this.sendMsg(msg);
+                NMessage updateMsg = GV.updateSendQueue.poll();
+                this.sendMsg(updateMsg);
             }
 
-            if (!GV.msgSendQueue.isEmpty()) {
+            if (!GV.msgSendQueue.isEmpty() && GV.updateCompleted) {
                 NMessage msg = GV.msgSendQueue.poll();
                 this.skipLostPort(msg);
                 if (!this.skipMsg) {
@@ -139,64 +142,87 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
     private void handleDisconn(NMessage msg) {
         Log.e(TAG, "HANDLE DISCONN: " + msg.getTgtPort());
-        Dynamo dynamo = Dynamo.getInstance();
-        GV.lostPort = msg.getTgtPort();
-        this.bocastLost = true;
 
-        String tgtId = dynamo.genHash(GV.lostPort);
+        if (GV.updateCompleted) {
+            Dynamo dynamo = Dynamo.getInstance();
+            GV.lostPort = msg.getTgtPort();
+            this.bocastLost = true;
 
-        switch (msg.getMsgType()) {
-            case INSERT:
-                if (dynamo.isLastNode(tgtId, "INSERT")) {
-                    msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-                    GV.notifySuccNode.offer(msg);
-                } else {
-                    msg.setTgtPort(dynamo.getSuccPortOfPort(GV.lostPort));
-                    msg.setSndPort(GV.MY_PORT);
-                    this.reSendMsg = msg;
-                }
-                break;
+            String tgtId = dynamo.genHash(GV.lostPort);
 
-            case DELETE:
-                if (dynamo.isLastNode(tgtId, "DELETE")) {
-                    msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
-                    GV.notifySuccNode.offer(msg);
-                } else {
-                    msg.setTgtPort(dynamo.getSuccPortOfPort(GV.lostPort));
-                    msg.setSndPort(GV.MY_PORT);
-                    this.reSendMsg = msg;
-                }
-                break;
+            switch (msg.getMsgType()) {
+                case INSERT:
+                    if (dynamo.isLastNode(tgtId, "INSERT")) {
+                        Log.e("HANDLE DISCONN", "MISS LAST INSERT");
+                        msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
+                        GV.notifySuccNode.offer(msg);
+                    } else {
+                        Log.e("HANDLE DISCONN", "MISS FIRST/SECOND INSERT");
+                        msg.setTgtPort(dynamo.getSuccPortOfPort(GV.lostPort));
+                        msg.setSndPort(GV.MY_PORT);
+                        this.reSendMsgQueue.offer(msg);
+                    }
+                    break;
 
-            case QUERY:
-                if (dynamo.isLastNode(tgtId, "QUERY")) {
-                    msg.setTgtPort(GV.MY_PORT);
-                } else {
-                    msg.setTgtPort(dynamo.getPredPort());
-                }
-                msg.setSndPort(GV.MY_PORT);
-                this.reSendMsg = msg;
-                break;
+                case DELETE:
+                    if (dynamo.isLastNode(tgtId, "DELETE")) {
+                        Log.e("HANDLE DISCONN", "MISS LAST DELETE");
+                        msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
+                        GV.notifySuccNode.offer(msg);
+                    } else {
+                        Log.e("HANDLE DISCONN", "MISS FIRST/SECOND INSERT");
+                        msg.setTgtPort(dynamo.getSuccPortOfPort(GV.lostPort));
+                        msg.setSndPort(GV.MY_PORT);
+                        this.reSendMsgQueue.offer(msg);
+                    }
+                    break;
 
-            case RECOVERY:
-                GV.updateSendQueue.offer(msg);
-                break;
+                case QUERY:
+                    if (dynamo.isLastNode(tgtId, "QUERY")) {
+                        Log.e("HANDLE DISCONN", "MISS LAST QUERY");
+                        msg.setTgtPort(GV.MY_PORT);
+                        this.reSendMsgQueue.offer(msg);
+                    } else {
+                        Log.e("HANDLE DISCONN", "MISS FIRST/SECOND QUERY");
+                        msg.setTgtPort(dynamo.getPredPort());
+                        msg.setSndPort(GV.MY_PORT);
+                        this.reSendMsgQueue.offer(msg);
+                    }
+                    break;
 
-            default:
-                Log.e("DISCONN ERROR", msg.toString());
-                break;
+                case RECOVERY:
+                    GV.updateSendQueue.offer(msg);
+                    break;
+
+                default:
+                    Log.e("DISCONN ERROR", msg.toString());
+                    break;
+            }
+
+        } else {
+
+            switch (msg.getMsgType()) {
+                case RECOVERY:
+                    Log.e("HANDLE DISCONN", "INIT RECOVERY");
+                    GV.updateSendQueue.offer(msg);
+                    break;
+
+                default:
+                    Log.e("DISCONN ERROR", "IN UPDATE STATUS: " + msg.toString());
+                    break;
+            }
         }
-
     }
 
     private void bocastLost() {
         ArrayList<String> ports = Dynamo.PORTS;
         ports.remove(GV.MY_PORT);
         ports.remove(GV.lostPort);
-
+        Log.e("BOCAST LOST", "LOCAL PORT: " + GV.MY_PORT +
+                "; LOST PORT: " + GV.lostPort + "; PORTS: " + ports.toString());
         for (String port: ports) {
             NMessage msg = new NMessage(NMessage.TYPE.LOST,
-                    GV.lostPort, port, "$$$");
+                    GV.lostPort, port, "$$$", "$$$");
             this.sendMsg(msg);
         }
 

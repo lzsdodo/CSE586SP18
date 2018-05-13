@@ -50,16 +50,6 @@ public class NMessage {
         this.msgBody = this.msgKey + "<>" + this.msgVal;
     }
 
-    public NMessage(TYPE msgType, String cmdPort, String tgtPort, String msgBody) {
-        this();
-        this.msgType = msgType;
-        this.cmdPort = cmdPort;
-        this.tgtPort = tgtPort;
-        this.msgBody = msgBody;
-        this.msgKey = null;
-        this.msgVal = null;
-    }
-
     // public String getMsgID()    { return this.msgID; }
     public TYPE getMsgType()    { return this.msgType; }
     public String getCmdPort()  { return this.cmdPort; }

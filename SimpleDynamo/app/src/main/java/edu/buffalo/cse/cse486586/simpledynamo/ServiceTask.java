@@ -3,6 +3,7 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.os.AsyncTask;
+import android.os.Message;
 import android.util.Log;
 
 
@@ -20,24 +21,26 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
 
         while (true) {
+
             try {
 
-                while (!(GV.updateRecvQueue.isEmpty())) {
-                    NMessage msg = GV.msgRecvQueue.poll(); // with Remove
-                    Log.d("UPDATE", msg.toString());
+                while (!GV.updateRecvQueue.isEmpty()) {
+                    NMessage msg = GV.updateRecvQueue.poll(); // with Remove
+                    Log.e("HANDLE UPDATE MSG", msg.toString());
                     String cmdPort = msg.getCmdPort();
 
                     switch (msg.getMsgType()) {
-                        case LOST:
-                            Log.e("LOST", "PORT: " +  cmdPort);
-                            GV.lostPort = cmdPort;
-                            break;
-
                         case RECOVERY:
-                            if (GV.lostPort.equals(msg.getSndPort())) {
+                            Log.e("RECOVERY", "PORT: " + msg.getSndPort());
+                            if ((GV.lostPort == null) || (GV.lostPort.equals(msg.getSndPort()))) {
                                 this.prepareUpdate(msg.getSndPort());
                                 GV.lostPort = null;
                             }
+                            break;
+
+                        case LOST:
+                            Log.e("LOST", "PORT: " +  cmdPort);
+                            GV.lostPort = cmdPort;
                             break;
 
                         case UPDATE_INSERT:
@@ -49,7 +52,20 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                             break;
 
                         case UPDATE_COMPLETED:
-                            GV.updateTimes++;
+                            Dynamo dynamo = Dynamo.getInstance();
+                            if (cmdPort.equals(dynamo.getPredPort())) {
+                                this.refreshUI("UPDATE COMPLETED PRED: " + dynamo.getPredPort());
+                                GV.updatePred = true;
+                            }
+                            if (cmdPort.equals(dynamo.getSuccPort())) {
+                                GV.updateSucc = true;
+                                this.refreshUI("UPDATE COMPLETED SUCC: " + dynamo.getSuccPort());
+                            }
+                            if (GV.updatePred && GV.updateSucc) {
+                                this.refreshUI("UPDATE COMPLETED BOTH");
+                                GV.updateCompleted = true;
+                                GV.lostPort = null;
+                            }
                             break;
 
                         default:
@@ -59,7 +75,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 }
 
                 // Handle Receive Message
-                if (!(GV.msgRecvQueue.isEmpty()) && (GV.updateTimes>=2)) {
+                if ((!GV.msgRecvQueue.isEmpty()) && GV.updateCompleted) {
                     NMessage msg = GV.msgRecvQueue.poll(); // with Remove
                     Log.d("HANDLE RECV MSG", "" + msg.toString());
 
@@ -115,21 +131,23 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         Dynamo dynamo = Dynamo.getInstance();
 
         if (sndPort.equals(dynamo.getPredPort())) {
+            this.refreshUI("RECOVERING PRED: " + dynamo.getPredPort());
             while (!GV.notifyPredNode.isEmpty()) {
-                GV.updateSendQueue.offer(GV.notifyPredNode.poll());
+                NMessage notifyMsg = GV.notifyPredNode.poll();
+                GV.updateSendQueue.offer(notifyMsg);
             }
-            GV.updateSendQueue.offer(new NMessage(
-                    NMessage.TYPE.UPDATE_COMPLETED,
-                    GV.MY_PORT, sndPort, "$$$"));
+            GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
+                    GV.MY_PORT, sndPort, "$$$", "FROM SUCC PORT"));
         }
 
         if (sndPort.equals(dynamo.getSuccPort())) {
-            while (!GV.notifyPredNode.isEmpty()) {
-                GV.updateSendQueue.offer(GV.notifySuccNode.poll());
+            this.refreshUI("RECOVERING SUCC: " + dynamo.getSuccPort());
+            while (!GV.notifySuccNode.isEmpty()) {
+                NMessage notifyMsg = GV.notifySuccNode.poll();
+                GV.updateSendQueue.offer(notifyMsg);
             }
-            GV.updateSendQueue.offer(new NMessage(
-                    NMessage.TYPE.UPDATE_COMPLETED,
-                    GV.MY_PORT, sndPort, "$$$"));
+            GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
+                    GV.MY_PORT, sndPort, "$$$", "FROM PRED PORT"));
         }
     }
 
@@ -152,4 +170,10 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         cv.clear();
     }
 
+    private void refreshUI(String str) {
+        Message uiMsg = new Message();
+        uiMsg.what = SimpleDynamoActivity.UI;
+        uiMsg.obj = str;
+        SimpleDynamoActivity.uiHandler.sendMessage(uiMsg);
+    }
 }
