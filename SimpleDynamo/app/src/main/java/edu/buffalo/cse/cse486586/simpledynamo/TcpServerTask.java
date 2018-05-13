@@ -37,9 +37,12 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
         try {
             while (true) {
+
                 this.socket = this.serverSocket.accept();
 
                 if (this.socket != null) {
+                    this.socket.setOOBInline(true);
+                    this.socket.setTrafficClass(0x04|0x10);
                     this.socket.setReceiveBufferSize(8*1024); // Receive Buffer Default 8192
                     Log.d(TAG, "ACCEPTED CONN: " + this.socket.getRemoteSocketAddress().toString());
 
@@ -47,7 +50,9 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                     this.in = this.socket.getInputStream();
                     this.br = new BufferedReader(new InputStreamReader(in));
 
-                    this.handleMsg(this.br.readLine());
+                    String msgRecvStr = this.br.readLine().trim();
+                    Log.v(TAG, "RECV MSG: " + msgRecvStr);
+                    this.handleMsg(NMessage.parseMsg(msgRecvStr));
 
                     this.br.close();
                     this.in.close();
@@ -92,10 +97,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
-    private void handleMsg(String strings) {
-        String strRecv = strings.trim();
-        Log.v(TAG, "RECV MSG: " + strRecv);
-        NMessage msgRecv = NMessage.parseMsg(strRecv);
+    private void handleMsg(NMessage msgRecv) {
 
         switch (msgRecv.getMsgType()) {
             case LOST:

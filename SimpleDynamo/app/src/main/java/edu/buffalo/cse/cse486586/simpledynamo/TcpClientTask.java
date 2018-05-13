@@ -8,7 +8,7 @@ import android.util.Log;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.io.StreamCorruptedException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -24,7 +24,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
     static final String TAG = "CLIENT";
     static final String REMOTE_ADDR = "10.0.2.2";
 
-    private OutputStream out;
+    private PrintWriter out;
     private InputStream in;
 
     private boolean connFlag;
@@ -38,7 +38,6 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         Log.v(TAG, "Start TcpClientTask.");
 
         this.connFlag = false;
-
 
         while (true) {
 
@@ -66,14 +65,13 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
                 }
                 this.skipMsg = false;
 
-
-
             }
 
         }
     }
 
     private void sendMsg(NMessage msg) {
+        GV.waitMsgId = msg.getMsgID();
         String msgToSend = msg.toString();
         String tgtPort = msg.getTgtPort();
         Integer remotePort = Integer.parseInt(tgtPort) * 2;
@@ -81,6 +79,8 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
         try {
             Socket socket = new Socket();
+            socket.setOOBInline(true);
+            socket.setTrafficClass(0x04|0x10);
             socket.connect(new InetSocketAddress(REMOTE_ADDR, remotePort));
 
             this.connFlag = false;
@@ -89,12 +89,15 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
                 socket.setSoTimeout(100);          // Response Timeout
                 Log.v(TAG, "CONN SERVER: " + socket.getRemoteSocketAddress());
 
-                this.in = socket.getInputStream();
-                this.out = socket.getOutputStream();
+                socket.sendUrgentData(0xff);
 
-                this.out.write(msgToSend.getBytes());
+                this.in = socket.getInputStream();
+                this.out = new PrintWriter(socket.getOutputStream());
+
+                this.out.println(msgToSend);
                 this.out.flush();
                 Log.v(TAG, "SENT MSG: " + msgToSend);
+
 
                 this.out.close();
                 this.in.close();

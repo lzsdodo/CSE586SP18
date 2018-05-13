@@ -119,15 +119,6 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         }
     }
 
-    private boolean isFailedSituation() {
-        // INSERT/DELETE:
-        //      sender and tgt's position in perferlist
-        //      final msg send failed
-        // QUERY:
-        //      it is not last in perferList
-        return false;
-    }
-
     private void prepareUpdate(String sndPort) {
         Dynamo dynamo = Dynamo.getInstance();
 

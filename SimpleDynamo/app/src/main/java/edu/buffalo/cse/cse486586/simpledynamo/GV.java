@@ -38,5 +38,8 @@ public class GV {
 //    static boolean updatePred = false;
 //    static boolean updateSucc = false;
 //    static boolean updateCompleted = false;
+
+    static String waitMsgId = null;
+    static int serverStatus = 0;
 }
 

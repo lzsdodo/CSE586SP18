@@ -31,6 +31,8 @@ public class SimpleDynamoActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_simple_dynamo);
 
+        Log.e("LIFE CYCLE", "onCreate");
+
         this.mTextView = (TextView) findViewById(R.id.textView1);
         this.mTextView.setMovementMethod(new ScrollingMovementMethod());
         mTextView.append("INIT UI\n");
@@ -96,20 +98,15 @@ public class SimpleDynamoActivity extends Activity {
         }
         Log.e(TAG, "test finish: " + System.currentTimeMillis());
     }
-
-	@Override
+    
+    @Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.simple_dynamo, menu);
 		return true;
 	}
-	
-	public void onStop() {
-        super.onStop();
-	    Log.v("Test", "onStop()");
-	}
 
-	public class UiHandler extends Handler {
+    public class UiHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
