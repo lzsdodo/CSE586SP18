@@ -3,6 +3,7 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.os.AsyncTask;
+import android.os.Message;
 import android.util.Log;
 
 
@@ -20,7 +21,49 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
         while (true) {
             try {
-                // Handle Receive Message
+
+                while (!GV.updateRecvQueue.isEmpty()) {
+                    NMessage msg = GV.updateRecvQueue.poll(); // with Remove
+                    Log.e("HANDLE UPDATE MSG", msg.toString());
+                    String cmdPort = msg.getCmdPort();
+                    switch (msg.getMsgType()) {
+                        case RECOVERY:
+                            Log.e("RECOVERY", "SEND DATA BACK TO " + msg.getSndPort());
+                            if ((cmdPort.equals(GV.lostPort)) || GV.lostPort == null) {
+                                GV.lostPort = null;
+                            }
+                            break;
+
+                        case LOST:
+                            Log.e("LOST", "LOST PORT " +  cmdPort);
+                            GV.lostPort = cmdPort;
+                            break;
+
+                        case UPDATE_INSERT:
+                            this.updateInsert(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
+                            break;
+
+                        case UPDATE_DELETE:
+                            qCR.delete(GV.dbUri, msg.getMsgKey(), new String[] {cmdPort, "notAllowToSend"});
+                            break;
+
+                        case UPDATE_COMPLETED:
+                            Dynamo dynamo = Dynamo.getInstance();
+                            if (cmdPort.equals(dynamo.getPredPort())) {
+                                this.refreshUI("UPDATE COMPLETED PRED " + dynamo.getPredPort());
+                            }
+                            if (cmdPort.equals(dynamo.getSuccPort())) {
+                                this.refreshUI("UPDATE COMPLETED SUCC " + dynamo.getSuccPort());
+                            }
+                            break;
+
+                        default:
+                            Log.e("SERVICE UPDATE ERROR", "SHOULD NOT HAPPEN!!!!!!!!!!!!");
+                            break;
+                    }
+                }
+
+                    // Handle Receive Message
                 if (!(GV.msgRecvQueue.isEmpty())) {
                     NMessage msg = GV.msgRecvQueue.poll(); // with Remove
                     Log.d("HANDLE RECV MSG", "" + msg.toString());
@@ -35,7 +78,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
                         case INSERT:
                             Log.d("HANDLE INSERT", msg.getMsgBody());
-                            this.handleInsertOne(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
+                            this.handleInsert(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
                             break;
 
                         case DELETE:
@@ -46,7 +89,6 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                         case RESULT_ONE:
                             Log.d("HANDLE RESULT ONE", msg.getMsgBody());
                             GV.resultOneMap.put(msg.getMsgKey(), msg.getMsgVal());
-                            // this.releaseLock("ONE");
                             GV.needWaiting = false;
                             break;
 
@@ -57,15 +99,14 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
                         case RESULT_ALL_COMLETED:
                             Log.e("HANDLE QUERY COMPLETED", msg.toString());
-                            //this.releaseLock("ALL");
                             GV.needWaiting = false;
                             break;
 
-                        case UPDATE_DATA:break;
 
-                        case UPDATE_COMPLETED:break;
 
-                        default:break;
+                        default:
+                            Log.e("SERVICE HANDLE ERROR", "SHOULD NOT HAPPEN!!!!!!!!!!!!");
+                            break;
                     }
 
 
@@ -86,27 +127,59 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         return false;
     }
 
-    private void releaseLock(String whichLock) {
-        if (whichLock.equals("ONE")) {
-            synchronized (GV.lockOne) {
-                GV.lockOne.notifyAll();
+    private void prepareUpdate(String sndPort) {
+        Dynamo dynamo = Dynamo.getInstance();
+
+        if (sndPort.equals(dynamo.getPredPort())) {
+            this.refreshUI("RECOVERING PRED: " + dynamo.getPredPort());
+            if (!GV.notifyPredNode.isEmpty()) {
+                for (NMessage msg: GV.notifyPredNode) {
+                    GV.updateSendQueue.offer(msg);
+                }
+                GV.notifyPredNode.clear();
+                GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
+                        GV.MY_PORT, sndPort, "$$$", "FROM SUCC PORT"));
             }
         }
 
-        if (whichLock.equals("ALL")) {
-            synchronized (GV.lockAll) {
-                GV.lockAll.notifyAll();
+        if (sndPort.equals(dynamo.getSuccPort())) {
+            this.refreshUI("RECOVERING SUCC: " + dynamo.getSuccPort());
+            if (!GV.notifySuccNode.isEmpty()) {
+                for (NMessage msg: GV.notifySuccNode) {
+                    GV.updateSendQueue.offer(msg);
+                }
+                GV.notifySuccNode.clear();
+                GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
+                        GV.MY_PORT, sndPort, "$$$", "FROM PRED PORT"));
             }
         }
+
     }
 
-    private void handleInsertOne(String key, String value, String cmdPort) {
+    private void handleInsert(String key, String value, String cmdPort) {
         ContentValues cv = new ContentValues();
         cv.put("cmdPort", cmdPort);
         cv.put("key", key);
         cv.put("value", value);
         qCR.insert(GV.dbUri, cv);
         cv.clear();
+    }
+
+    private void updateInsert(String key, String value, String cmdPort) {
+        ContentValues cv = new ContentValues();
+        cv.put("cmdPort", cmdPort);
+        cv.put("allowSend", "allowSend");
+        cv.put("key", key);
+        cv.put("value", value);
+        qCR.insert(GV.dbUri, cv);
+        cv.clear();
+    }
+
+    private void refreshUI(String str) {
+        Message uiMsg = new Message();
+        uiMsg.what = SimpleDynamoActivity.UI;
+        uiMsg.obj = str;
+        SimpleDynamoActivity.uiHandler.sendMessage(uiMsg);
     }
 
 }

@@ -10,11 +10,11 @@ public class NMessage {
         NONE,
         INSERT, DELETE, QUERY,
         RESULT_ONE, RESULT_ALL, RESULT_ALL_COMLETED,
-        UPDATE_DATA, UPDATE_COMPLETED,
+        LOST, RECOVERY,
+        UPDATE_INSERT, UPDATE_DELETE, UPDATE_COMPLETED,
     }
 
-    static int msgCounter = 0;
-
+    // static int msgCounter = 0;
     // private String msgID = null;
     private TYPE   msgType = TYPE.NONE;
     private String cmdPort = null; // command port
@@ -40,16 +40,6 @@ public class NMessage {
         this.msgBody = this.msgKey + "<>" + this.msgVal;
     }
 
-    public NMessage(TYPE msgType, String cmdPort, String tgtPort, String msgBody) {
-        this();
-        this.msgType = msgType;
-        this.cmdPort = cmdPort;
-        this.tgtPort = tgtPort;
-        this.msgBody = msgBody;
-        this.msgKey = null;
-        this.msgVal = null;
-    }
-
     // public String getMsgID()    { return this.msgID; }
     public TYPE getMsgType()    { return this.msgType; }
     public String getCmdPort()  { return this.cmdPort; }
@@ -67,7 +57,6 @@ public class NMessage {
     public void setMsgBody (String msgBody) { this.msgBody = msgBody; }
     public void setMsgKey (String msgKey)   { this.msgKey = msgKey; }
     public void setMsgVal (String msgVal) { this.msgVal = msgVal; }
-
 
     public static NMessage parseMsg(String s) {
         Log.v("PARSE MSG", s);
@@ -87,7 +76,7 @@ public class NMessage {
             msg.setMsgVal(kv[1]);
         } else {
             msg.setMsgKey(kv[0]);
-            msg.setMsgVal(null);
+            msg.setMsgVal("");
         }
 
         return msg;

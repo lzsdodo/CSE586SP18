@@ -23,15 +23,19 @@ public class GV {
     // Stored info for failed node
     static ArrayList<NMessage> notifyPredNode = new ArrayList<NMessage>(0);
     static ArrayList<NMessage> notifySuccNode = new ArrayList<NMessage>(0);
+    static Queue<NMessage> updateSendQueue = new LinkedList<NMessage>();
+    static Queue<NMessage> updateRecvQueue = new LinkedList<NMessage>();
 
-    static final Object lockOne = new Object();
-    static final Object lockAll = new Object();
     static Lock queryLock = new ReentrantLock();
     static boolean needWaiting;
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
     static int dbRows = 0;
-    static boolean deleteTable = true;
+    static boolean deleteTable = false;
 
+    static String lostPort = null;
+//    static boolean updatePred = false;
+//    static boolean updateSucc = false;
+//    static boolean updateCompleted = false;
 }
 

@@ -39,6 +39,10 @@ public class SimpleDynamoActivity extends Activity {
         GV.MY_PORT = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
         mTextView.append("INIT MY PORT: " + GV.MY_PORT + "\n");
 
+        // Init Dynamo Instance
+        this.dynamo = Dynamo.getInstance();
+        mTextView.append("INIT DYNAMO\n");
+
         GV.dbUri = new Uri.Builder().scheme("content").authority(URI).build();
         this.mCR = getContentResolver();
         mTextView.append("INIT DATABASE\n");
@@ -54,9 +58,9 @@ public class SimpleDynamoActivity extends Activity {
         new ServiceTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
         mTextView.append("INIT SERVER CLIENT SERVICE TASK\n");
 
-        // Init Dynamo Instance
-        this.dynamo = Dynamo.getInstance();
-        mTextView.append("INIT DYNAMO\n");
+        // PORT INFO
+        mTextView.append("PRED: " + dynamo.getPredPort() + "; SELF: " +
+                GV.MY_PORT + "; SUCC: " + dynamo.getSuccPort() + "\n");
 
         // Update Lost Data
         this.updateLostData();
@@ -65,18 +69,11 @@ public class SimpleDynamoActivity extends Activity {
 	}
 
 	private void updateLostData() {
-        this.mCR.query(GV.dbUri, null, "#", null, null);
-        if (GV.dbRows > 0) {
-            mTextView.append("UPDATE DATA... (REMAIN: " + GV.dbRows + ")\n");
-
-            // Send msg to neighbour
-            GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_DATA,
-                    this.dynamo.getPort(), this.dynamo.getSuccPort(), "$", "$"));
-            GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_DATA,
-                    this.dynamo.getPort(), this.dynamo.getPredPort(), "$", "$"));
-        } else {
-            mTextView.append("INIT DATA STATUS\n");
-        }
+        // Send msg to neighbour
+        GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
+                this.dynamo.getPort(), this.dynamo.getSuccPort(), "$", "$"));
+        GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
+                this.dynamo.getPort(), this.dynamo.getPredPort(), "$", "$"));
     }
 
     private void test() {

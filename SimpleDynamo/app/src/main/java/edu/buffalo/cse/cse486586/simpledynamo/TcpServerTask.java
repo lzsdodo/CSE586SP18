@@ -96,7 +96,37 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         String strRecv = strings.trim();
         Log.v(TAG, "RECV MSG: " + strRecv);
         NMessage msgRecv = NMessage.parseMsg(strRecv);
-        GV.msgRecvQueue.offer(msgRecv);
+
+        switch (msgRecv.getMsgType()) {
+            case LOST:
+            case RECOVERY:
+            case UPDATE_COMPLETED:
+            case UPDATE_INSERT:
+            case UPDATE_DELETE:
+                GV.updateRecvQueue.offer(msgRecv);
+                break;
+
+            case QUERY:
+            case INSERT:
+            case DELETE:
+            case RESULT_ONE:
+            case RESULT_ALL:
+            case RESULT_ALL_COMLETED:
+                Dynamo dynamo = Dynamo.getInstance();
+                if (dynamo.detectFail(msgRecv.getMsgKey(),
+                        msgRecv.getSndPort(), msgRecv.getTgtPort())) {
+                    // Skip [0]/[1] node, store in notifyPredNode
+                    msgRecv.setTgtPort(dynamo.getPredPort());
+                    GV.notifyPredNode.add(msgRecv);
+                }
+                GV.msgRecvQueue.offer(msgRecv);
+                break;
+
+            default:
+                Log.e(TAG, "handleMsg -> SWITCH DEFAULT CASE ERROR: " + msgRecv.toString());
+                break;
+        }
+
         this.refreshUI(msgRecv.toString());
     }
 
