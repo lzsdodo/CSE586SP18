@@ -116,7 +116,7 @@ public class SimpleDynamoActivity extends Activity {
             switch (msg.what) {
                 case UI:
                     uiCounter++;
-                    if (uiCounter > 50) {
+                    if (uiCounter > 30) {
                         mTextView.setText("CLEAR UI...\n");
                     }
                     mTextView.append(msg.obj + "\n");

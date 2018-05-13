@@ -14,8 +14,7 @@ public class NMessage {
         UPDATE_INSERT, UPDATE_DELETE, UPDATE_COMPLETED,
     }
 
-    // static int msgCounter = 0;
-    // private String msgID = null;
+    private String msgID = null;
     private TYPE   msgType = TYPE.NONE;
     private String cmdPort = null; // command port
     private String sndPort = null; // sender port
@@ -25,8 +24,8 @@ public class NMessage {
     private String msgVal  = null;
 
     public NMessage() {
-        // int mid = Integer.parseInt(this.sndPort.substring(2) + "1000") + msgCounter++;
-        // this.msgID = mid + "";
+        int mid = Integer.parseInt(GV.MY_PORT.substring(2) + "1000") + GV.msgCounter++;
+        this.msgID = mid + "";
         this.sndPort = GV.MY_PORT;
     }
 
@@ -40,7 +39,7 @@ public class NMessage {
         this.msgBody = this.msgKey + "<>" + this.msgVal;
     }
 
-    // public String getMsgID()    { return this.msgID; }
+    public String getMsgID()    { return this.msgID; }
     public TYPE getMsgType()    { return this.msgType; }
     public String getCmdPort()  { return this.cmdPort; }
     public String getSndPort()  { return this.sndPort; }
@@ -49,7 +48,7 @@ public class NMessage {
     public String getMsgKey()   { return this.msgKey; }
     public String getMsgVal() { return this.msgVal; }
 
-    // public void setMsgID (String msgID)     { this.msgID = msgID; }
+    public void setMsgID (String msgID)     { this.msgID = msgID; }
     public void setMsgType (TYPE msgType)   { this.msgType = msgType; }
     public void setCmdPort (String cmdPort) { this.cmdPort = cmdPort; }
     public void setSndPort (String sndPort) { this.sndPort = sndPort; }
@@ -63,12 +62,12 @@ public class NMessage {
         String[] msgInfo = s.split("::");
         NMessage msg = new NMessage();
 
-        // msg.setMsgID(msgInfo[0]);
-        msg.setMsgType(TYPE.valueOf(msgInfo[0]));
-        msg.setCmdPort(msgInfo[1]);
-        msg.setSndPort(msgInfo[2]);
-        msg.setTgtPort(msgInfo[3]);
-        msg.setMsgBody(msgInfo[4]);
+        msg.setMsgID(msgInfo[0]);
+        msg.setMsgType(TYPE.valueOf(msgInfo[1]));
+        msg.setCmdPort(msgInfo[2]);
+        msg.setSndPort(msgInfo[3]);
+        msg.setTgtPort(msgInfo[4]);
+        msg.setMsgBody(msgInfo[5]);
 
         String[] kv = msg.getMsgBody().split("<>");
         if (kv.length == 2) {
@@ -84,7 +83,7 @@ public class NMessage {
 
     public String toString() {
         // this.msgID + "::" +
-        return this.msgType.name() + "::" +
+        return this.msgID + "::" + this.msgType.name() + "::" +
                 this.cmdPort + "::" + this.sndPort + "::" + this.tgtPort + "::" +
                 this.msgBody;
     }

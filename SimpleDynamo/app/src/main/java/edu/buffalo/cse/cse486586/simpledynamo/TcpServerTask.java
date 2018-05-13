@@ -112,12 +112,19 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
             case RESULT_ONE:
             case RESULT_ALL:
             case RESULT_ALL_COMLETED:
-                Dynamo dynamo = Dynamo.getInstance();
-                if (dynamo.detectFail(msgRecv.getMsgKey(),
-                        msgRecv.getSndPort(), msgRecv.getTgtPort())) {
-                    // Skip [0]/[1] node, store in notifyPredNode
-                    msgRecv.setTgtPort(dynamo.getPredPort());
-                    GV.notifyPredNode.add(msgRecv);
+                if (GV.lostPort!=null) {
+                    Dynamo dynamo = Dynamo.getInstance();
+                    if (dynamo.detectFail(msgRecv.getMsgKey(),
+                            msgRecv.getSndPort(), msgRecv.getTgtPort())) {
+                        // Skip [0]/[1] node, store in notifyPredNode
+                        Log.d(TAG, "DETECT FAIL " + msgRecv.getMsgType().name() +
+                                " : \nSEND PORT=" + msgRecv.getSndPort() +
+                                "; TGT PORT=" + msgRecv.getTgtPort() +
+                                "; PERFER PORT LIST=" + dynamo.portsOfPerferIdList(
+                                        dynamo.getPerferIdList(dynamo.genHash(msgRecv.getMsgKey()))));
+                        msgRecv.setTgtPort(dynamo.getPredPort());
+                        GV.notifyPredNode.add(msgRecv);
+                    }
                 }
                 GV.msgRecvQueue.offer(msgRecv);
                 break;

@@ -289,7 +289,6 @@ public class SimpleDynamoProvider extends ContentProvider {
     }
 
 
-
     // Basic insert, query and delete operation on database
     private Cursor queryOne(String key) {
         String[] columns = new String[] {this.dbHelper.COL_NAME_KEY, this.dbHelper.COL_NAME_VALUE};

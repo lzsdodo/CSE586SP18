@@ -30,6 +30,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                         case RECOVERY:
                             Log.e("RECOVERY", "SEND DATA BACK TO " + msg.getSndPort());
                             if ((cmdPort.equals(GV.lostPort)) || GV.lostPort == null) {
+                                this.prepareUpdate(msg.getSndPort());
                                 GV.lostPort = null;
                             }
                             break;

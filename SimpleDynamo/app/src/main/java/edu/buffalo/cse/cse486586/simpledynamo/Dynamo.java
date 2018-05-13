@@ -40,7 +40,6 @@ public class Dynamo {
                     "SUCC: " + this.getSuccPort() + "::" + this.getSuccID());
     }
 
-
     static public Dynamo getInstance() {
         if (instance == null)
             instance = new Dynamo();
@@ -53,7 +52,6 @@ public class Dynamo {
     public String getSuccID() {return this.succID;}
     public String getPredPort() {return this.predPort;}
     public String getPredID() {return this.predID;}
-
 
 
     public String getTgtPort(String kid, String op) {
@@ -96,16 +94,15 @@ public class Dynamo {
         ArrayList<String> perferIdList = this.getPerferIdList(kid);
         int sndIndex = perferIdList.indexOf(this.genHash(sndPort));
         int tgtIndex = perferIdList.indexOf(this.genHash(tgtPort));
-        Log.d(TAG, "DETECT FAIL: \nSEND PORT=" + sndPort + "; TGT PORT=" +
-                tgtPort + "; PERFER PORT LIST=" + this.portsOfPerferIdList(perferIdList));
 
-        if (((sndIndex >= 0) && (tgtIndex-sndIndex!=1)) || (sndIndex != 0 && tgtIndex == 1)) {
+        if ((sndIndex==0 && tgtIndex==2) || (sndIndex<0 && tgtIndex==1)) {
             // Skip [0]/[1] node, store in notifyPredNode
             return true;
         } else {
             Log.e(TAG, "DETECT FAIL ERROR: \nSEND PORT=" + sndPort + "; TGT PORT=" +
                     tgtPort + "; PERFER PORT LIST=" + this.portsOfPerferIdList(perferIdList));
         }
+
         return false;
     }
 

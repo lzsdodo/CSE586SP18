@@ -13,6 +13,7 @@ public class GV {
 
     static Uri dbUri = null;
     static String MY_PORT = null;
+    static int msgCounter = 0;
 
     static Queue<NMessage> msgRecvQueue = new LinkedList<NMessage>();
     static Queue<NMessage> msgSendQueue = new LinkedList<NMessage>();
