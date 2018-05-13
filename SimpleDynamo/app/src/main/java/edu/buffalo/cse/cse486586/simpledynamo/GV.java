@@ -13,6 +13,8 @@ public class GV {
 
     static Uri dbUri = null;
     static String MY_PORT = null;
+    static String MY_ID = null;
+    static String MY_PORT_INFO = null;
     static int msgCounter = 0;
 
     static Queue<NMessage> msgRecvQueue = new LinkedList<NMessage>();
@@ -29,6 +31,9 @@ public class GV {
 
     static Lock queryLock = new ReentrantLock();
     static boolean needWaiting;
+
+    static ArrayList<String> nodeIdList = new ArrayList<String>(0);
+    static HashMap<String, String> idPortMap = new HashMap<String, String>(0);
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
     static int dbRows = 0;

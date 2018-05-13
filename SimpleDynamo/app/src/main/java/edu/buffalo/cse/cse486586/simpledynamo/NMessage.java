@@ -24,7 +24,7 @@ public class NMessage {
     private String msgVal  = null;
 
     public NMessage() {
-        int mid = Integer.parseInt(GV.MY_PORT.substring(2) + "1000") + GV.msgCounter++;
+        long mid = Integer.parseInt(GV.MY_PORT.substring(2) + "10000") + GV.msgCounter++;
         this.msgID = mid + "";
         this.sndPort = GV.MY_PORT;
     }

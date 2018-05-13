@@ -1,8 +1,5 @@
 package edu.buffalo.cse.cse486586.simpledynamo;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Formatter;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
@@ -23,7 +20,7 @@ public class SimpleDynamoProvider extends ContentProvider {
 
     public Cursor dbQuery(String key, String cmdPort) {
         Cursor c = null;
-        String kid = this.genHash(key);
+        String kid = Dynamo.genHash(key);
         Dynamo dynamo = Dynamo.getInstance();
 
         /* Local Command */
@@ -68,7 +65,7 @@ public class SimpleDynamoProvider extends ContentProvider {
                 }
                 // not equal to "@" or "*"
                 else {
-                    String tgtPort = dynamo.getTgtPort(kid, "QUERY");
+                    String tgtPort = dynamo.getLastPort(kid);
                     Log.d("L-QUERY", "2. QUERY " + key);
 
                     if (tgtPort.equals(GV.MY_PORT)) {
@@ -173,8 +170,8 @@ public class SimpleDynamoProvider extends ContentProvider {
         Dynamo dynamo = Dynamo.getInstance();
         String key = cv.getAsString("key");
         String val = cv.getAsString("value");
-        String kid = this.genHash(key);
-        String tgtPort = dynamo.getTgtPort(kid, "INSERT");
+        String kid = Dynamo.genHash(key);
+        String tgtPort = dynamo.getFirstPort(kid);
 
         /* Local Command */
         // Just send msg to tgt and do nothing
@@ -199,7 +196,7 @@ public class SimpleDynamoProvider extends ContentProvider {
         else {
             Log.d("E-INSERT", "1. " + key + "::" + kid);
             this.insertOne(cv);
-            if (!dynamo.isLastNode(kid, "INSERT") && allowSend) {
+            if (!dynamo.isLastNode(kid) && allowSend) {
                 // NOT FINAL NODE & SEND TO SUCC
                 GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.INSERT,
                         cmdPort, dynamo.getSuccPort(), key, val));
@@ -211,8 +208,8 @@ public class SimpleDynamoProvider extends ContentProvider {
     public int dbDelete(String key, String cmdPort, boolean allowSend) {
         int affectedRows = 0;
         Dynamo dynamo = Dynamo.getInstance();
-        String kid = this.genHash(key);
-        String tgtPort = dynamo.getTgtPort(kid, "DELETE");
+        String kid = Dynamo.genHash(key);
+        String tgtPort = dynamo.getFirstPort(kid);
 
         /* Local Command */
         // Just send msg to tgt and do nothing
@@ -276,7 +273,7 @@ public class SimpleDynamoProvider extends ContentProvider {
                 affectedRows = this.deleteOne(key);
                 Log.d("E-DELETE", "2. DELETE " + key);
 
-                if (!dynamo.isLastNode(kid, "DELETE") && allowSend) {
+                if (!dynamo.isLastNode(kid) && allowSend) {
                     // SEND TO SUCC
                     GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.DELETE,
                             cmdPort, dynamo.getSuccPort(), key, "---"));
@@ -379,22 +376,6 @@ public class SimpleDynamoProvider extends ContentProvider {
         c.close();
         return map;
     }
-
-    private String genHash(String input) {
-        Formatter formatter = new Formatter();
-        try {
-            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
-            byte[] sha1Hash = sha1.digest(input.getBytes());
-            for (byte b : sha1Hash) {
-                formatter.format("%02x", b);
-            }
-        } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "GEN HASH ERR" );
-            e.printStackTrace();
-        }
-        return formatter.toString();
-    }
-
 
     @Override
     public Cursor query(Uri uri, String[] projection, String selection,

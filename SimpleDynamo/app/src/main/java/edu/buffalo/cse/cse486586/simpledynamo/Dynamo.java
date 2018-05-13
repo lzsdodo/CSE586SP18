@@ -26,12 +26,10 @@ public class Dynamo {
     private String predPort;
     private String predID;
 
-    private ArrayList<String> nodeIdList = new ArrayList<String>(0);
-    private HashMap<String, String> idPortMap = new HashMap<String, String>(0);
-
     private Dynamo() {
         this.port = GV.MY_PORT;
-        this.id = this.genHash(this.port);
+        this.id = genHash(this.port);
+        GV.MY_ID = this.id;
         initIdPortMap(PORTS);
         initNodeIDList(PORTS);
         initNeighbourInfo();
@@ -53,72 +51,92 @@ public class Dynamo {
     public String getPredPort() {return this.predPort;}
     public String getPredID() {return this.predID;}
 
-
-    public String getTgtPort(String kid, String op) {
-        ArrayList<String> perferIdList = getPerferIdList(kid);
-        Log.d(TAG, this.port + " in? " + this.portsOfPerferIdList(perferIdList).toString()+ " ~" + kid);
-
-        if (op.equals("INSERT") || op.equals("DELETE")) {
-            return this.idPortMap.get(perferIdList.get(0));
-
-        } else if (op.equals("QUERY")) {
-            return this.idPortMap.get(perferIdList.get(N-1));
-
-        } else {
-            Log.e(TAG, "ERROR OPERATION");
-            return null;
-        }
-    }
-
-    public boolean isLastNode(String kid, String op) {
-        ArrayList<String> perferIdList = getPerferIdList(kid);
-        Log.d(TAG, this.port + " in? " + this.portsOfPerferIdList(perferIdList).toString() + " ~" + kid);
-
-        if (op.equals("INSERT") || op.equals("DELETE")) {
-            return this.id.equals(perferIdList.get(N-1));
-
-        } else if (op.equals("QUERY")) {
-            return this.id.equals(perferIdList.get(0));
-
-        } else {
-            Log.e(TAG, "ERROR OPERATION");
-            return true;
-        }
-    }
-
-
     // TODO HANDLE FAIL SEND
     public boolean detectFail(String key, String sndPort, String tgtPort) {
         // INSERT AND DELETE
-        String kid = this.genHash(key);
+        String kid = genHash(key);
         ArrayList<String> perferIdList = this.getPerferIdList(kid);
-        int sndIndex = perferIdList.indexOf(this.genHash(sndPort));
-        int tgtIndex = perferIdList.indexOf(this.genHash(tgtPort));
+        int sndIndex = perferIdList.indexOf(genHash(sndPort));
+        int tgtIndex = perferIdList.indexOf(genHash(tgtPort));
 
-        if ((sndIndex==0 && tgtIndex==2) || (sndIndex<0 && tgtIndex==1)) {
-            // Skip [0]/[1] node, store in notifyPredNode
+        if (sndIndex<0 && tgtIndex==1) {
+            // skip [0] node
+            GV.lostPort = GV.idPortMap.get(perferIdList.get(0));
             return true;
+
+        } else if (sndIndex==0 && tgtIndex==2) {
+            // Skip [1] node, store in notifyPredNode
+            GV.lostPort = GV.idPortMap.get(perferIdList.get(tgtIndex-1));
+            return true;
+
         } else {
             Log.e(TAG, "DETECT FAIL ERROR: \nSEND PORT=" + sndPort + "; TGT PORT=" +
-                    tgtPort + "; PERFER PORT LIST=" + this.portsOfPerferIdList(perferIdList));
+                    tgtPort + "; PERFER PORT LIST=" + this.getPerferPortList(perferIdList));
         }
 
         return false;
     }
 
 
-    public String getSuccPortOfPort(String port) {
-        String pid = this.genHash(port);
-        int pidIndex = this.nodeIdList.indexOf(pid);
-        String succId = this.nodeIdList.get(pidIndex+1);
-        return this.idPortMap.get(succId);
+    public String getFirstPort(String kid) {
+        ArrayList<String> perferIdList = getPerferIdList(kid);
+        String firstPort = GV.idPortMap.get(perferIdList.get(0));
+        Log.d(TAG, "My port " + this.port + " is equal to first? " + firstPort + "\nin" +
+                getPerferPortList(perferIdList).toString() + " ~" + kid);
+        return firstPort;
     }
 
-    public ArrayList<String> getPerferIdList(String kid) {
+    public String getLastPort(String kid) {
+        ArrayList<String> perferIdList = getPerferIdList(kid);
+        String lastPort = GV.idPortMap.get(perferIdList.get(N-1));
+        Log.d(TAG, "My port " + this.port + " is equal to last? " + lastPort + "\nin" +
+                getPerferPortList(perferIdList).toString() + " ~" + kid);
+        return lastPort;
+    }
+
+    // ALREADY TEST
+    static boolean isFirstNode(String kid) {
+        ArrayList<String> perferIdList = getPerferIdList(kid);
+        String firstId = perferIdList.get(0);
+        Log.d(TAG, "My id " + GV.MY_ID  + " is equal to first? " + firstId + "\nin" +
+                perferIdList.toString());
+        return GV.MY_ID.equals(firstId);
+    }
+
+    static boolean isLastNode(String kid) {
+        ArrayList<String> perferIdList = getPerferIdList(kid);
+        String lastId = perferIdList.get(N-1);
+        Log.d(TAG, "My id " + GV.MY_ID + " is equal to last? " + lastId + "\nin" +
+                perferIdList.toString());
+        return GV.MY_ID.equals(lastId);
+    }
+
+    static String getSuccPortOfPort(String port) {
+        String pid = genHash(port);
+        int pidIndex = GV.nodeIdList.indexOf(pid);
+        String succId = GV.nodeIdList.get(pidIndex+1);
+        String succPort = GV.idPortMap.get(succId);
+        Log.e("DYNAMO INFO", port + "\'s SUCC PORT: " + succPort);
+        return succPort;
+    }
+
+    static String getPredPortOfPort(String port) {
+        String pid = genHash(port);
+        int pidIndex = GV.nodeIdList.indexOf(pid);
+        if (pidIndex==0) {
+            pidIndex = GV.nodeIdList.lastIndexOf(pid);
+        }
+        String predId = GV.nodeIdList.get(pidIndex-1);
+        String predPort = GV.idPortMap.get(predId);
+        Log.e("DYNAMO INFO", port + "\'s PRED PORT: " + predPort);
+        return predPort;
+    }
+
+    synchronized static ArrayList<String> getPerferIdList(String kid) {
         for (int i=1; i<6; i++) {
-            if (inInterval(kid, this.nodeIdList.get(i-1), this.nodeIdList.get(i))) {
+            if (inInterval(kid, GV.nodeIdList.get(i-1), GV.nodeIdList.get(i))) {
                 ArrayList<String> perferIdList = new ArrayList<String>(0);
-                perferIdList.addAll(this.nodeIdList.subList(i, i+N));
+                perferIdList.addAll(GV.nodeIdList.subList(i, i+N));
                 Log.d(TAG, kid + " -> " + perferIdList.toString());
                 return perferIdList;
             }
@@ -126,44 +144,44 @@ public class Dynamo {
         return null;
     }
 
-    public ArrayList<String> portsOfPerferIdList(ArrayList<String> perferIdList) {
+    synchronized static ArrayList<String> getPerferPortList(ArrayList<String> perferIdList) {
         ArrayList<String> ports = new ArrayList<String>();
         for(String id: perferIdList) {
-            ports.add(this.idPortMap.get(id));
+            ports.add(GV.idPortMap.get(id));
         }
         return ports;
     }
 
     private void initNodeIDList(ArrayList<String> ports) {
         for(String port: ports) {
-            this.nodeIdList.add(genHash(port));
+            GV.nodeIdList.add(genHash(port));
         }
-        Collections.sort(this.nodeIdList);
-        this.nodeIdList.addAll(this.nodeIdList.subList(0, N));
-        Log.e(TAG, "INIT NODE-ID-LIST: " + this.nodeIdList.toString());
+        Collections.sort(GV.nodeIdList);
+        GV.nodeIdList.addAll(GV.nodeIdList.subList(0, N));
+        Log.e(TAG, "INIT NODE-ID-LIST: " + GV.nodeIdList.toString());
     }
 
     private void initIdPortMap(ArrayList<String> ports) {
         for(String port: ports) {
-            String nodeId = this.genHash(port);
-            this.idPortMap.put(nodeId, port);
+            String nodeId = genHash(port);
+            GV.idPortMap.put(nodeId, port);
         }
-        Log.e(TAG, "INIT ID-PORT-MAP: " + this.idPortMap.toString());
+        Log.e(TAG, "INIT ID-PORT-MAP: " + GV.idPortMap.toString());
     }
 
     private void initNeighbourInfo() {
-        int index = this.nodeIdList.indexOf(this.id);
+        int index = GV.nodeIdList.indexOf(this.id);
         Log.e(TAG, "" + index);
         if (index == 0) {
-            index = this.nodeIdList.lastIndexOf(this.id);
+            index = GV.nodeIdList.lastIndexOf(this.id);
         }
-        this.predID = this.nodeIdList.get(index-1);
-        this.succID = this.nodeIdList.get(index+1);
-        this.predPort = this.idPortMap.get(this.predID);
-        this.succPort = this.idPortMap.get(this.succID);
+        this.predID = GV.nodeIdList.get(index-1);
+        this.succID = GV.nodeIdList.get(index+1);
+        this.predPort = GV.idPortMap.get(this.predID);
+        this.succPort = GV.idPortMap.get(this.succID);
     }
 
-    public String genHash(String input) {
+    static String genHash(String input) {
         Formatter formatter = new Formatter();
         byte[] sha1Hash;
         try {
@@ -176,16 +194,16 @@ public class Dynamo {
             Log.e(TAG, "GEN HASH ERR" );
             e.printStackTrace();
         }
-        return formatter.toString();
+        String hashStr = formatter.toString();
+        formatter.close();
+        return hashStr;
     }
 
-    private boolean inInterval(String id, String fromID, String toID) {
+    static boolean inInterval(String id, String fromID, String toID) {
         if (toID.compareTo(fromID) > 0) {
             return ((id.compareTo(fromID) >= 0) && (id.compareTo(toID) < 0));
         } else {
-            // fromID.compareTo(toID) > 0
             return ((id.compareTo(toID) < 0) || (id.compareTo(fromID) >= 0));
-
         }
     }
 

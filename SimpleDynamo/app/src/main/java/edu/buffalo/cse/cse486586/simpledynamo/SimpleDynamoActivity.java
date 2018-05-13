@@ -14,6 +14,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.widget.TextView;
 
+import java.util.ArrayList;
+
 public class SimpleDynamoActivity extends Activity {
 
 	static String TAG = "MAIN";
@@ -61,8 +63,8 @@ public class SimpleDynamoActivity extends Activity {
         mTextView.append("INIT SERVER CLIENT SERVICE TASK\n");
 
         // PORT INFO
-        mTextView.append("PRED: " + dynamo.getPredPort() + "; SELF: " +
-                GV.MY_PORT + "; SUCC: " + dynamo.getSuccPort() + "\n");
+        GV.MY_PORT_INFO = "PRED: " + dynamo.getPredPort() + "; SELF: " + GV.MY_PORT + "; SUCC: " + dynamo.getSuccPort();
+        mTextView.append(GV.MY_PORT_INFO + "\n");
 
         // Update Lost Data
         this.updateLostData();
@@ -80,10 +82,34 @@ public class SimpleDynamoActivity extends Activity {
 
     private void test() {
         Log.e(TAG, "Testing");
+        this.testDynamo();
         this.testTCP();
     }
 
+    private void testDynamo() {
+	    String TAG = "TEST DYNAMO";
+        String key = "xo1R4fhe37p0ee81msccP3tRxB2LrNKJ"; // [5554, 5558, 5560]
+        //String key = "5eJV8lT1wRoVMkHolpudrFlMunYGrWod"; // [5556, 5554, 5558]
+		//String key = "XytP6LeFFQLUmZxLw6xoYaaoe6nuqcIK"; // [5558, 5560, 5562]
+        //String key = "hDjuKlGct3lJt9PaR0EaUlEVSevjrYYG"; // [5560, 5562, 5556]
+        //String key = "NywLQ4F6h0DDhxy8hc0vHWtJfCZUNEGg"; // [5562, 5556, 5554]
+        String kid = Dynamo.genHash(key);
+        Log.e(TAG, "Key<>Kid: " + key + " <> " + kid);
+        ArrayList<String> perferIdList = Dynamo.getPerferIdList(kid);
+        ArrayList<String> perferPortList = Dynamo.getPerferPortList(perferIdList);
+        Log.e(TAG, "Perfer Id List: " + perferIdList.toString());
+        Log.e(TAG, "Perfer Node List: " + perferPortList.toString());
+        Log.e(TAG, "My Port: " + GV.MY_PORT);
+        Log.e(TAG, "First Port: " + dynamo.getFirstPort(kid));
+        Log.e(TAG, dynamo.isFirstNode(kid) + "");
+        Log.e(TAG, dynamo.getSuccPortOfPort(dynamo.getFirstPort(kid)) +
+                "=" + dynamo.getPredPortOfPort(dynamo.getLastPort(kid)));
+        Log.e(TAG, "Last Port: " + dynamo.getLastPort(kid));
+        Log.e(TAG, dynamo.isLastNode(kid) + "");
+    }
+
     private void testTCP() {
+        String TAG = "TEST TCP";
         long lastTime = System.currentTimeMillis();
         Log.e(TAG, "test: " + lastTime );
         while (true) {
@@ -114,6 +140,7 @@ public class SimpleDynamoActivity extends Activity {
                 case UI:
                     uiCounter++;
                     if (uiCounter > 30) {
+                        uiCounter = 0;
                         mTextView.setText("CLEAR UI...\n");
                     }
                     mTextView.append(msg.obj + "\n");

@@ -28,7 +28,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                     String cmdPort = msg.getCmdPort();
                     switch (msg.getMsgType()) {
                         case RECOVERY:
-                            Log.e("RECOVERY", "SEND DATA BACK TO " + msg.getSndPort());
+                            Log.e("RECOVERY", "SEND BACK TO " + msg.getSndPort());
                             if ((cmdPort.equals(GV.lostPort)) || GV.lostPort == null) {
                                 this.prepareUpdate(msg.getSndPort());
                                 GV.lostPort = null;
@@ -119,33 +119,35 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         }
     }
 
+
+    // TEST
     private void prepareUpdate(String sndPort) {
         Dynamo dynamo = Dynamo.getInstance();
 
         if (sndPort.equals(dynamo.getPredPort())) {
-            this.refreshUI("RECOVERING PRED: " + dynamo.getPredPort());
-            if (!GV.notifyPredNode.isEmpty()) {
-                for (NMessage msg: GV.notifyPredNode) {
-                    GV.updateSendQueue.offer(msg);
-                }
-                GV.notifyPredNode.clear();
-                GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
-                        GV.MY_PORT, sndPort, "$$$", "FROM SUCC PORT"));
+            this.refreshUI("RECOVERING PRED: " + dynamo.getPredPort() +
+                    " with size " + GV.notifyPredNode.size());
+            for (NMessage msg: GV.notifyPredNode) {
+                GV.updateSendQueue.offer(msg);
             }
+            GV.notifyPredNode.clear();
+            GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
+                        GV.MY_PORT, sndPort, "-", "FROM SUCC PORT"));
+
         }
 
         if (sndPort.equals(dynamo.getSuccPort())) {
-            this.refreshUI("RECOVERING SUCC: " + dynamo.getSuccPort());
-            if (!GV.notifySuccNode.isEmpty()) {
-                for (NMessage msg: GV.notifySuccNode) {
-                    GV.updateSendQueue.offer(msg);
-                }
-                GV.notifySuccNode.clear();
-                GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
-                        GV.MY_PORT, sndPort, "$$$", "FROM PRED PORT"));
+            this.refreshUI("RECOVERING SUCC: " + dynamo.getSuccPort() +
+                    " with size " + GV.notifySuccNode.size());
+            for (NMessage msg: GV.notifySuccNode) {
+                GV.updateSendQueue.offer(msg);
             }
-        }
+            GV.notifySuccNode.clear();
+            GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
+                    GV.MY_PORT, sndPort, "~", "FROM PRED PORT"));
 
+        }
+        this.refreshUI("PREPARE UPDATE SEND QUEUE SIZE: " + GV.updateSendQueue.size());
     }
 
     private void handleInsert(String key, String value, String cmdPort) {
