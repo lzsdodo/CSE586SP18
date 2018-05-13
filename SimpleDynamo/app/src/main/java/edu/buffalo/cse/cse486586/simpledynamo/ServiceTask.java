@@ -18,10 +18,48 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
         this.qCR = cr[0];
 
+
         while (true) {
             try {
+
+                while (!(GV.updateRecvQueue.isEmpty())) {
+                    NMessage msg = GV.msgRecvQueue.poll(); // with Remove
+                    Log.d("UPDATE", msg.toString());
+                    String cmdPort = msg.getCmdPort();
+
+                    switch (msg.getMsgType()) {
+                        case LOST:
+                            Log.e("LOST", "PORT: " +  cmdPort);
+                            GV.lostPort = cmdPort;
+                            break;
+
+                        case RECOVERY:
+                            if (GV.lostPort.equals(msg.getSndPort())) {
+                                this.prepareUpdate(msg.getSndPort());
+                                GV.lostPort = null;
+                            }
+                            break;
+
+                        case UPDATE_INSERT:
+                            this.updateInsert(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
+                            break;
+
+                        case UPDATE_DELETE:
+                            qCR.delete(GV.dbUri, msg.getMsgKey(), new String[] {cmdPort, "notAllowToSend"});
+                            break;
+
+                        case UPDATE_COMPLETED:
+                            GV.updateTimes++;
+                            break;
+
+                        default:
+                            Log.e("UPDATE ERROR", "SHOULD NOT HAPPEN!!!!!!!!!!!!");
+                            break;
+                    }
+                }
+
                 // Handle Receive Message
-                if (!(GV.msgRecvQueue.isEmpty())) {
+                if (!(GV.msgRecvQueue.isEmpty()) && (GV.updateTimes>=2)) {
                     NMessage msg = GV.msgRecvQueue.poll(); // with Remove
                     Log.d("HANDLE RECV MSG", "" + msg.toString());
 
@@ -35,7 +73,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
                         case INSERT:
                             Log.d("HANDLE INSERT", msg.getMsgBody());
-                            this.handleInsertOne(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
+                            this.handleInsert(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
                             break;
 
                         case DELETE:
@@ -46,7 +84,6 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                         case RESULT_ONE:
                             Log.d("HANDLE RESULT ONE", msg.getMsgBody());
                             GV.resultOneMap.put(msg.getMsgKey(), msg.getMsgVal());
-                            // this.releaseLock("ONE");
                             GV.needWaiting = false;
                             break;
 
@@ -57,15 +94,12 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
                         case RESULT_ALL_COMLETED:
                             Log.e("HANDLE QUERY COMPLETED", msg.toString());
-                            //this.releaseLock("ALL");
                             GV.needWaiting = false;
                             break;
 
-                        case UPDATE_DATA:break;
-
-                        case UPDATE_COMPLETED:break;
-
-                        default:break;
+                        default:
+                            Log.e("HANDLE ERROR", "SHOULD NOT HAPPEN!!!!!!!!!!!!");
+                            break;
                     }
 
 
@@ -77,32 +111,41 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         }
     }
 
-    private boolean isFailedSituation() {
-        // INSERT/DELETE:
-        //      sender and tgt's position in perferlist
-        //      final msg send failed
-        // QUERY:
-        //      it is not last in perferList
-        return false;
-    }
+    private void prepareUpdate(String sndPort) {
+        Dynamo dynamo = Dynamo.getInstance();
 
-    private void releaseLock(String whichLock) {
-        if (whichLock.equals("ONE")) {
-            synchronized (GV.lockOne) {
-                GV.lockOne.notifyAll();
+        if (sndPort.equals(dynamo.getPredPort())) {
+            while (!GV.notifyPredNode.isEmpty()) {
+                GV.updateSendQueue.offer(GV.notifyPredNode.poll());
             }
+            GV.updateSendQueue.offer(new NMessage(
+                    NMessage.TYPE.UPDATE_COMPLETED,
+                    GV.MY_PORT, sndPort, "$$$"));
         }
 
-        if (whichLock.equals("ALL")) {
-            synchronized (GV.lockAll) {
-                GV.lockAll.notifyAll();
+        if (sndPort.equals(dynamo.getSuccPort())) {
+            while (!GV.notifyPredNode.isEmpty()) {
+                GV.updateSendQueue.offer(GV.notifySuccNode.poll());
             }
+            GV.updateSendQueue.offer(new NMessage(
+                    NMessage.TYPE.UPDATE_COMPLETED,
+                    GV.MY_PORT, sndPort, "$$$"));
         }
     }
 
-    private void handleInsertOne(String key, String value, String cmdPort) {
+    private void handleInsert(String key, String value, String cmdPort) {
         ContentValues cv = new ContentValues();
         cv.put("cmdPort", cmdPort);
+        cv.put("key", key);
+        cv.put("value", value);
+        qCR.insert(GV.dbUri, cv);
+        cv.clear();
+    }
+
+    private void updateInsert(String key, String value, String cmdPort) {
+        ContentValues cv = new ContentValues();
+        cv.put("cmdPort", cmdPort);
+        cv.put("allowSend", "allowSend");
         cv.put("key", key);
         cv.put("value", value);
         qCR.insert(GV.dbUri, cv);

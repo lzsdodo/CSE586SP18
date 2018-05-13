@@ -48,15 +48,15 @@ public class SimpleDynamoActivity extends Activity {
         uiHandler = new UiHandler();
         mTextView.append("INIT UI HANDLER\n");
 
-        // Task Thread
-        new TcpServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        new TcpClientTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        new ServiceTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
-        mTextView.append("INIT SERVER CLIENT SERVICE TASK\n");
-
         // Init Dynamo Instance
         this.dynamo = Dynamo.getInstance();
         mTextView.append("INIT DYNAMO\n");
+
+        // Task Thread
+        new ServiceTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, getContentResolver());
+        new TcpServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        new TcpClientTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        mTextView.append("INIT SERVER CLIENT SERVICE TASK\n");
 
         // Update Lost Data
         this.updateLostData();
@@ -65,18 +65,15 @@ public class SimpleDynamoActivity extends Activity {
 	}
 
 	private void updateLostData() {
+        // Send msg to neighbour
         this.mCR.query(GV.dbUri, null, "#", null, null);
-        if (GV.dbRows > 0) {
-            mTextView.append("UPDATE DATA... (REMAIN: " + GV.dbRows + ")\n");
+        mTextView.append("UPDATE DATA... (REMAIN: " + GV.dbRows + ")\n");
+        GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
+                GV.MY_PORT, this.dynamo.getSuccPort(), "$$$"));
+        GV.updateSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
+                GV.MY_PORT, this.dynamo.getPredPort(), "$$$"));
 
-            // Send msg to neighbour
-            GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_DATA,
-                    this.dynamo.getPort(), this.dynamo.getSuccPort(), "$", "$"));
-            GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.UPDATE_DATA,
-                    this.dynamo.getPort(), this.dynamo.getPredPort(), "$", "$"));
-        } else {
-            mTextView.append("INIT DATA STATUS\n");
-        }
+        Log.e(TAG, "SEND RECOVERY");
     }
 
     private void test() {

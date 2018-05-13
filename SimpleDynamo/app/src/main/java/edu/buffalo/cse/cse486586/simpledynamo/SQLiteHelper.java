@@ -1,6 +1,5 @@
 package edu.buffalo.cse.cse486586.simpledynamo;
 
-
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -9,11 +8,11 @@ import android.util.Log;
 /*
  * Reference:
  * - Android Dev Docs:
- *      - Cpmtext: https://developer.android.com/reference/android/content/Context.html
- *      - android.content: https://developer.android.com/reference/android/content/package-summary.html
- *      - Save Data using SQLite: https://developer.android.com/training/data-storage/sqlite.html#DbHelper
- *      - SQLiteOpenHelper: https://developer.android.com/reference/android/database/sqlite/SQLiteOpenHelper.html
- *      - SQLiteDatabase: https://developer.android.com/reference/android/database/sqlite/SQLiteDatabase.html
+ *      Context: https://developer.android.com/reference/android/content/Context.html
+ *      Android Content: https://developer.android.com/reference/android/content/package-summary.html
+ *      Save Data using SQLite: https://developer.android.com/training/data-storage/sqlite.html#DbHelper
+ *      SQLiteOpenHelper: https://developer.android.com/reference/android/database/sqlite/SQLiteOpenHelper.html
+ *      SQLiteDatabase: https://developer.android.com/reference/android/database/sqlite/SQLiteDatabase.html
  */
 
 public class SQLiteHelper extends SQLiteOpenHelper {

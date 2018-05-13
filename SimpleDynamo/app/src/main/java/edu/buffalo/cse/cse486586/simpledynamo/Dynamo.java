@@ -55,7 +55,6 @@ public class Dynamo {
     public String getPredID() {return this.predID;}
 
 
-
     public String getTgtPort(String kid, String op) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
         Log.d(TAG, this.port + " in? " + this.portsOfPerferIdList(perferIdList).toString()+ " ~" + kid);
@@ -88,34 +87,35 @@ public class Dynamo {
         }
     }
 
-
     // TODO HANDLE FAIL SEND
-    public boolean detectFromRightNode(String kid, String sndPort) {
+    public boolean detectFail(String key, String sndPort, String tgtPort) {
         // INSERT AND DELETE
+        String kid = this.genHash(key);
         ArrayList<String> perferIdList = this.getPerferIdList(kid);
         int sndIndex = perferIdList.indexOf(this.genHash(sndPort));
-        int keyIndex = perferIdList.indexOf(kid);
+        int tgtIndex = perferIdList.indexOf(this.genHash(tgtPort));
+        Log.d(TAG, "DETECT FAIL: \nSEND PORT=" + sndPort + "; TGT PORT=" +
+                tgtPort + "; PERFER PORT LIST=" + this.portsOfPerferIdList(perferIdList));
 
-        if (sndIndex >= 0) {
-            // IN PerferID List
-            if (!sndPort.equals(this.predPort)) {
-                // Skip [1] node
-                // Store in notifyPredNode
-            }
-
+        if (((sndIndex >= 0) && (tgtIndex-sndIndex!=1)) || (sndIndex != 0 && tgtIndex == 1)) {
+            // Skip [0]/[1] node, store in notifyPredNode
+            return true;
         } else {
-            if (!this.id.equals(perferIdList.get(0))) {
-                // Skip [0] node
-                // Store in notifyPredNode
-            }
-
+            Log.e(TAG, "DETECT FAIL ERROR: \nSEND PORT=" + sndPort + "; TGT PORT=" +
+                    tgtPort + "; PERFER PORT LIST=" + this.portsOfPerferIdList(perferIdList));
         }
 
         // TODO IF EXIST, UPDATE TO NEW VERSION
-        return true;
+        return false;
     }
 
 
+    public String getSuccPortOfPort(String port) {
+        String pid = this.genHash(port);
+        int index = this.nodeIdList.indexOf(pid);
+        String succId = this.nodeIdList.get(index+1);
+        return this.idPortMap.get(succId);
+    }
 
     public ArrayList<String> getPerferIdList(String kid) {
         for (int i=1; i<6; i++) {
@@ -166,7 +166,7 @@ public class Dynamo {
         this.succPort = this.idPortMap.get(this.succID);
     }
 
-    private String genHash(String input) {
+    public String genHash(String input) {
         Formatter formatter = new Formatter();
         byte[] sha1Hash;
         try {

@@ -2,6 +2,14 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 
 import android.util.Log;
 
+/*
+ * Reference:
+ *  Dev Docs:
+ *      HashMap: https://docs.oracle.com/javase/9/docs/api/java/util/HashMap.html
+ *      Entry: https://docs.oracle.com/javase/9/docs/api/java/util/Map.Entry.html
+ *      Iterator: https://docs.oracle.com/javase/9/docs/api/java/util/Iterator.html
+ */
+
 public class NMessage {
     // Msg: "msgID::msgType::cmdPort::sndPort::tgtPort::msgBody"
     // Msg: "msgType::cmdPort::sndPort::tgtPort::msgBody"
@@ -10,10 +18,12 @@ public class NMessage {
         NONE,
         INSERT, DELETE, QUERY,
         RESULT_ONE, RESULT_ALL, RESULT_ALL_COMLETED,
-        UPDATE_DATA, UPDATE_COMPLETED,
+        LOST, RECOVERY,
+        UPDATE_INSERT, UPDATE_DELETE,
+        UPDATE_COMPLETED,
     }
 
-    static int msgCounter = 0;
+    // static int msgCounter = 0;
 
     // private String msgID = null;
     private TYPE   msgType = TYPE.NONE;
@@ -87,7 +97,7 @@ public class NMessage {
             msg.setMsgVal(kv[1]);
         } else {
             msg.setMsgKey(kv[0]);
-            msg.setMsgVal(null);
+            msg.setMsgVal("");
         }
 
         return msg;

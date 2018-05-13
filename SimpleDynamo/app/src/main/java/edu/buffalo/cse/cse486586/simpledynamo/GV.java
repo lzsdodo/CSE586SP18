@@ -2,7 +2,6 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 
 import android.net.Uri;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -21,11 +20,11 @@ public class GV {
     static HashMap<String, String> resultAllMap = new HashMap<String, String>();
 
     // Stored info for failed node
-    static ArrayList<NMessage> notifyPredNode = new ArrayList<NMessage>(0);
-    static ArrayList<NMessage> notifySuccNode = new ArrayList<NMessage>(0);
+    static Queue<NMessage> notifyPredNode = new LinkedList<NMessage>();
+    static Queue<NMessage> notifySuccNode = new LinkedList<NMessage>();
+    static Queue<NMessage> updateSendQueue = new LinkedList<NMessage>();
+    static Queue<NMessage> updateRecvQueue = new LinkedList<NMessage>();
 
-    static final Object lockOne = new Object();
-    static final Object lockAll = new Object();
     static Lock queryLock = new ReentrantLock();
     static boolean needWaiting;
 
@@ -33,5 +32,7 @@ public class GV {
     static int dbRows = 0;
     static boolean deleteTable = true;
 
+    static String lostPort = null;
+    static int updateTimes = 0;
 }
 

@@ -95,9 +95,37 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
     private void handleMsg(String strings) {
         String strRecv = strings.trim();
         Log.v(TAG, "RECV MSG: " + strRecv);
+
         NMessage msgRecv = NMessage.parseMsg(strRecv);
-        GV.msgRecvQueue.offer(msgRecv);
+        String msgTypeStr = msgRecv.getMsgType().name();
+
+        if (msgTypeStr.equals("LOST") || msgTypeStr.equals("RECOVERY")
+                || msgTypeStr.equals("UPDATE_INSERT")
+                || msgTypeStr.equals("UPDATE_DELETE")
+                || msgTypeStr.equals("UPDATE_COMPLETED")) {
+            GV.updateRecvQueue.offer(msgRecv);
+
+        } else {
+            Dynamo dynamo = Dynamo.getInstance();
+            if (dynamo.detectFail(msgRecv.getMsgKey(),
+                    msgRecv.getSndPort(), msgRecv.getTgtPort())) {
+                // Skip [0]/[1] node, store in notifyPredNode
+                msgRecv.setTgtPort(dynamo.getPredPort());
+                GV.notifyPredNode.offer(msgRecv);
+
+            }
+            GV.msgRecvQueue.offer(msgRecv);
+        }
         this.refreshUI(msgRecv.toString());
+    }
+
+
+    private boolean detectSkip() {
+        // INSERT/DELETE:
+        //      sender and tgt's position in perferlist
+        // QUERY:
+        //      it is not last in perferList
+        return false;
     }
 
     private void refreshUI(String str) {
