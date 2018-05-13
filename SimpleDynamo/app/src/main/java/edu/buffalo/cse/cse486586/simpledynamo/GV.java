@@ -17,17 +17,21 @@ public class GV {
     static String MY_PORT_INFO = null;
     static int msgCounter = 0;
 
-    static Queue<NMessage> msgRecvQueue = new LinkedList<NMessage>();
-    static Queue<NMessage> msgSendQueue = new LinkedList<NMessage>();
+    static Queue<NMessage> msgRecvQ = new LinkedList<NMessage>();
+    static Queue<NMessage> msgSendQ = new LinkedList<NMessage>();
 
     static HashMap<String, String> resultOneMap = new HashMap<String, String>();
     static HashMap<String, String> resultAllMap = new HashMap<String, String>();
 
     // Stored info for failed node
-    static ArrayList<NMessage> notifyPredNode = new ArrayList<NMessage>(0);
-    static ArrayList<NMessage> notifySuccNode = new ArrayList<NMessage>(0);
-    static Queue<NMessage> updateSendQueue = new LinkedList<NMessage>();
-    static Queue<NMessage> updateRecvQueue = new LinkedList<NMessage>();
+    static ArrayList<NMessage> notifyPredMsgL = new ArrayList<NMessage>(0);
+    static ArrayList<NMessage> notifySuccMsgL = new ArrayList<NMessage>(0);
+    static Queue<NMessage> msgUpdateSendQ = new LinkedList<NMessage>();
+    static Queue<NMessage> msgUpdateRecvQ = new LinkedList<NMessage>();
+
+    static Queue<NMessage> signalSendQueue = new LinkedList<NMessage>();
+    static HashMap<String, NMessage> signalMsgMap = new HashMap<String, NMessage>();
+    static HashMap<String, Integer> signalTimeMap = new HashMap<String, Integer>();
 
     static Lock queryLock = new ReentrantLock();
     static boolean needWaiting;
@@ -37,14 +41,9 @@ public class GV {
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
     static int dbRows = 0;
-    static boolean deleteTable = false;
+    static boolean deleteTable = true;
 
     static String lostPort = null;
-//    static boolean updatePred = false;
-//    static boolean updateSucc = false;
-//    static boolean updateCompleted = false;
 
-    static String waitMsgId = null;
-    static int serverStatus = 0;
 }
 

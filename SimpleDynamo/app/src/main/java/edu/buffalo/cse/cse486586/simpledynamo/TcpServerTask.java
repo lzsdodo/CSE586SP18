@@ -41,15 +41,22 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                 if (this.socket != null) {
                     Log.v(TAG, "ACCEPTED CONN: " + this.socket.getRemoteSocketAddress().toString());
                     this.socket.setTrafficClass(0x04 | 0x10);
-                    this.socket.setReceiveBufferSize(8 * 1024);
+                    this.socket.setReceiveBufferSize(16 * 1024);
+                    this.socket.setSoTimeout(200);
 
-                    this.out = this.socket.getOutputStream();
                     this.in = this.socket.getInputStream();
+                    this.out = this.socket.getOutputStream();
                     this.br = new BufferedReader(new InputStreamReader(in));
 
                     String msgRecvStr = this.br.readLine();
                     Log.v("TCP RECV MSG", msgRecvStr);
                     this.handleMsg(NMessage.parseMsg(msgRecvStr));
+
+                    this.br.close();
+                    this.in.close();
+                    this.out.close();
+                    this.socket.close();
+                    // Log.v(TAG, "SERVER SOCKET IO CLOSED.");
                 }
 
             } catch (ConnectTimeoutException e) {
@@ -70,17 +77,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
             } catch (Exception e) {
                 Log.e(TAG, "ServerTask Exception.");
                 e.printStackTrace();
-            } finally {
-
-                try {
-                    this.br.close();
-                    this.in.close();
-                    this.out.close();
-                    this.socket.close();
-                    // Log.v(TAG, "SERVER SOCKET IO CLOSED.");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
             }
         }
     }
@@ -88,42 +84,44 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
     private void handleMsg(NMessage msgRecv) {
 
-        if (GV.lostPort!=null) {
-            if (GV.lostPort.equals(msgRecv.getSndPort())) {
-                GV.lostPort = null;
-            }
-        }
-
         switch (msgRecv.getMsgType()) {
+            case SIGNAL:
+                this.handleSingal(msgRecv);
+                break;
+
             case LOST:
             case RECOVERY:
             case UPDATE_COMPLETED:
             case UPDATE_INSERT:
             case UPDATE_DELETE:
-                GV.updateRecvQueue.offer(msgRecv);
+                GV.msgUpdateRecvQ.offer(msgRecv);
                 break;
 
             case QUERY:
             case INSERT:
             case DELETE:
+                GV.signalSendQueue.offer(msgRecv);
+                GV.msgRecvQ.offer(msgRecv);
+                break;
+
             case RESULT_ONE:
             case RESULT_ALL:
             case RESULT_ALL_COMLETED:
-                if (GV.lostPort!=null) {
-                    Dynamo dynamo = Dynamo.getInstance();
-                    if (dynamo.detectFail(msgRecv.getMsgKey(),
-                            msgRecv.getSndPort(), msgRecv.getTgtPort())) {
-                        // Skip [0]/[1] node, store in notifyPredNode
-                        Log.d(TAG, "DETECT FAIL " + msgRecv.getMsgType().name() +
-                                " : \nSEND PORT=" + msgRecv.getSndPort() +
-                                "; TGT PORT=" + msgRecv.getTgtPort() +
-                                "; PERFER PORT LIST=" + dynamo.getPerferPortList(
-                                        dynamo.getPerferIdList(dynamo.genHash(msgRecv.getMsgKey()))));
-                        msgRecv.setTgtPort(dynamo.getPredPort());
-                        GV.notifyPredNode.add(msgRecv);
-                    }
-                }
-                GV.msgRecvQueue.offer(msgRecv);
+//                if (GV.lostPort!=null) {
+//                    Dynamo dynamo = Dynamo.getInstance();
+//                    if (dynamo.detectFail(msgRecv.getMsgKey(),
+//                            msgRecv.getSndPort(), msgRecv.getTgtPort())) {
+//                        // Skip [0]/[1] node, store in notifyPredNode
+//                        Log.d(TAG, "DETECT FAIL " + msgRecv.getMsgType().name() +
+//                                " : \nSEND PORT=" + msgRecv.getSndPort() +
+//                                "; TGT PORT=" + msgRecv.getTgtPort() +
+//                                "; PERFER PORT LIST=" + dynamo.getPerferPortList(
+//                                        dynamo.getPerferIdList(dynamo.genHash(msgRecv.getMsgKey()))));
+//                        msgRecv.setTgtPort(dynamo.getPredPort());
+//                        GV.notifyPredNode.add(msgRecv);
+//                    }
+//                }
+                GV.msgRecvQ.offer(msgRecv);
                 break;
 
             default:
@@ -134,6 +132,18 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         this.refreshUI(msgRecv.toString());
     }
 
+
+    private void handleSingal(NMessage msg) {
+        String mid = msg.getMsgKey();
+        NMessage oldMsg = GV.signalMsgMap.get(mid);
+        int lastTime = GV.signalTimeMap.get(mid);
+        int now = (int) System.currentTimeMillis();
+        int deltaTime = now - lastTime;
+        Log.d("HANDLE SINGAL", lastTime + " - " + now + " = " + deltaTime +
+                " (delta) for msg: " + oldMsg.toString());
+        GV.signalMsgMap.remove(mid);
+        GV.signalTimeMap.remove(mid);
+    }
 
 
     // TEST

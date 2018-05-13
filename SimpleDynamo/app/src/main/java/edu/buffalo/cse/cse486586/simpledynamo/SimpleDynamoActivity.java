@@ -74,9 +74,9 @@ public class SimpleDynamoActivity extends Activity {
 
 	private void updateLostData() {
         // Send msg to neighbour
-        GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
+        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RECOVERY,
                 this.dynamo.getPort(), this.dynamo.getSuccPort(), "$", "$"));
-        GV.msgSendQueue.offer(new NMessage(NMessage.TYPE.RECOVERY,
+        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RECOVERY,
                 this.dynamo.getPort(), this.dynamo.getPredPort(), "$", "$"));
     }
 
@@ -115,7 +115,7 @@ public class SimpleDynamoActivity extends Activity {
         while (true) {
             if (System.currentTimeMillis() > lastTime + 3000) {
                 Dynamo dynamo = Dynamo.getInstance();
-                GV.msgSendQueue.offer(new NMessage(
+                GV.msgSendQ.offer(new NMessage(
                         NMessage.TYPE.INSERT,
                         dynamo.getPort(), dynamo.getPort(),
                         "xo1R4fhe37p0ee81msccP3tRxB2LrNKJ", "TEST_VALUE"));
@@ -139,7 +139,7 @@ public class SimpleDynamoActivity extends Activity {
             switch (msg.what) {
                 case UI:
                     uiCounter++;
-                    if (uiCounter > 30) {
+                    if (uiCounter > 20) {
                         uiCounter = 0;
                         mTextView.setText("CLEAR UI...\n");
                     }

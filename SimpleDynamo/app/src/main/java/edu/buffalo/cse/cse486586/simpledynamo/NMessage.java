@@ -12,6 +12,7 @@ public class NMessage {
         RESULT_ONE, RESULT_ALL, RESULT_ALL_COMLETED,
         LOST, RECOVERY,
         UPDATE_INSERT, UPDATE_DELETE, UPDATE_COMPLETED,
+        SIGNAL,
     }
 
     private String msgID = null;
