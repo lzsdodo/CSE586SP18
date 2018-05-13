@@ -41,7 +41,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
                 if (this.socket != null) {
                     this.socket.setReceiveBufferSize(8*1024); // Receive Buffer Default 8192
-                    this.socket.setSoTimeout(100); // Response Timeout
                     Log.d(TAG, "ACCEPTED CONN: " + this.socket.getRemoteSocketAddress().toString());
 
                     this.out = this.socket.getOutputStream();
