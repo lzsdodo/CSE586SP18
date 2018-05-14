@@ -17,8 +17,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.util.LinkedList;
-import java.util.Queue;
+
 
 public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
@@ -28,19 +27,16 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
     private OutputStream out;
     private InputStream in;
 
-    private boolean connFlag = false;
     private boolean skipMsg = false;
-    private Queue<NMessage> reSendMsgQueue = new LinkedList<NMessage>();
 
     @Override
     protected Void doInBackground (Void... voids) {
 
         Log.v(TAG, "Start TcpClientTask.");
 
-        this.connFlag = false;
-
         while (true) {
 
+            // 发送心跳信号
             if (!GV.signalSendQ.isEmpty()) {
                 NMessage recvMsg = GV.signalSendQ.poll();
                 // type = signal, cmdPort = myPort,
@@ -51,101 +47,21 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
                 this.sendMsg(singalMsg);
             }
 
-            while (!this.reSendMsgQueue.isEmpty()) {
-                NMessage resendMsg = this.reSendMsgQueue.poll();
-                Log.e("RESEND MSG", resendMsg.toString());
-                this.sendMsg(resendMsg);
-            }
-
+            // 更新队列
             while (!GV.msgUpdateSendQ.isEmpty()) {
                 NMessage updateMsg = GV.msgUpdateSendQ.poll();
                 Log.e("SEND UPDATE MSG", updateMsg.toString());
                 this.sendMsg(updateMsg);
             }
 
+            // 常规信号
             if (!GV.msgSendQ.isEmpty()) {
                 NMessage msg = GV.msgSendQ.poll();
-
-                if (GV.lostPort!=null) {
-                    this.skipLostPort(msg);
-                }
-
-                if (!this.skipMsg) {
-                    this.sendMsg(msg);
-                }
+//                if (GV.lostPort!=null) {this.skipLostPort(msg);}
+                if (!this.skipMsg) {this.sendMsg(msg);}
                 this.skipMsg = false;
             }
 
-        }
-    }
-
-    synchronized private void sendMsg(NMessage msg) {
-        String msgToSend = msg.toString();
-        String tgtPort = msg.getTgtPort();
-        Integer remotePort = Integer.parseInt(tgtPort) * 2;
-        Log.v("HANDLE SEND MSG", "" + msgToSend);
-
-        // Send msg and record according to type
-        this.recordWaitMsg(msg);
-
-        Socket socket = new Socket();
-        try {
-            socket.setTrafficClass(0x04 | 0x10);
-            socket.connect(new InetSocketAddress(REMOTE_ADDR, remotePort));
-
-            this.connFlag = false;
-            if (socket.isConnected()) {
-                Log.v(TAG, "CONN SERVER: " + socket.getRemoteSocketAddress());
-                socket.setSendBufferSize(8192);
-                socket.setSoTimeout(200);
-
-                this.in = socket.getInputStream();
-                this.out = socket.getOutputStream();
-                this.out.write(msgToSend.getBytes());
-                this.out.flush();
-
-                //Log.e("DETECT FAILUE", msg.getTgtPort() + " => " + this.in.read());
-                Log.v("TCP SENT MSG", msgToSend);
-
-                this.out.close();
-                this.in.close();
-                while (!socket.isClosed()) {
-                    socket.close();
-                }
-                // Log.v(TAG, "CLIENTSOCKET CLOSED.");
-                this.connFlag = true;
-            }
-
-        } catch (ConnectTimeoutException e) {
-            Log.e(TAG, "ClientTask ConnectTimeoutException");
-            e.printStackTrace();
-        } catch (SocketTimeoutException e) {
-            // Server response timeout
-            Log.e(TAG, "ClientTask SocketTimeoutException");
-            e.printStackTrace();
-        } catch (SocketException e) {
-            // 1. IO on socket after closed by yourself; 2. Connect reset by peer / Connection reset.
-            Log.e(TAG, "ClientTask SocketException");
-            e.printStackTrace();
-        } catch (EOFException e) {
-            // 当输入过程中意外到达文件或流的末尾时，抛出此异常。
-            Log.e(TAG, "ClientTask EOFException");
-            e.printStackTrace();
-        } catch (StreamCorruptedException e) {
-            Log.e(TAG, "ClientTask StreamCorruptedException");
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
-            Log.e(TAG, "ClientTask UnknownHostException");
-            e.printStackTrace();
-        } catch (IOException e) {
-            Log.e(TAG, "ClientTask IOException");
-            e.printStackTrace();
-
-        } finally {
-            if (!this.connFlag) {
-                Log.e(TAG, "DISCONN DEVICE: " + tgtPort);
-                this.refreshUI("DISCONN DEVICE: " + tgtPort);
-            }
         }
     }
 
@@ -170,48 +86,68 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
-    private void skipLostPort(NMessage msg) {
-        if (msg.getTgtPort().equals(GV.lostPort)) {
-            Log.e("SKIP LOST PORT", "BEFORE SKIP MSG: " + msg.toString());
-            String lostId = Dynamo.genHash(GV.lostPort);
-            switch (msg.getMsgType()) {
-                case INSERT:
-                    if (Dynamo.isLastNode(lostId)) {
-                        msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-                        GV.notifySuccMsgL.add(msg);
-                        this.skipMsg = true;
-                    } else {
-                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-                        msg.setSndPort(GV.MY_PORT);
-                    }
-                    break;
+    synchronized private void sendMsg(NMessage msg) {
+        String msgToSend = msg.toString();
+        String tgtPort = msg.getTgtPort();
+        Integer remotePort = Integer.parseInt(tgtPort) * 2;
+        Log.v("HANDLE SEND MSG", "" + msgToSend);
 
-                case DELETE:
-                    if (Dynamo.isLastNode(lostId)) {
-                        msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
-                        GV.notifySuccMsgL.add(msg);
-                        this.skipMsg = true;
-                    } else {
-                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-                        msg.setSndPort(GV.MY_PORT);
-                    }
-                    break;
+        // Send msg and record according to type
+        this.recordWaitMsg(msg);
 
-                case QUERY:
-                    if (Dynamo.isFirstNode(lostId)) {
-                        msg.setTgtPort(GV.MY_PORT);
-                    } else {
-                        msg.setTgtPort(Dynamo.getPredPortOfPort(GV.lostPort));
-                    }
-                    msg.setSndPort(GV.MY_PORT);
-                    break;
+        Socket socket = new Socket();
+        try {
+            socket.setTrafficClass(0x04 | 0x10);
+            socket.connect(new InetSocketAddress(REMOTE_ADDR, remotePort));
 
-                default:
-                    break;
+            if (socket.isConnected()) {
+                Log.v(TAG, "CONN SERVER: " + socket.getRemoteSocketAddress());
+                socket.setSendBufferSize(8192);
+                socket.setSoTimeout(200);
+
+                this.in = socket.getInputStream();
+                this.out = socket.getOutputStream();
+                this.out.write(msgToSend.getBytes());
+                this.out.flush();
+
+                //Log.e("DETECT FAILUE", msg.getTgtPort() + " => " + this.in.read());
+                Log.v("TCP SENT MSG", msgToSend);
+
+                this.out.close();
+                this.in.close();
+                while (!socket.isClosed()) {socket.close();}
+                // Log.v(TAG, "CLIENTSOCKET CLOSED.");
             }
-            Log.e("SKIP LOST PORT", "AFTER SKIP MSG: " + msg.toString());
+        } catch (ConnectTimeoutException e) {
+            Log.e(TAG, "ClientTask ConnectTimeoutException");
+            e.printStackTrace();
+        } catch (SocketTimeoutException e) {
+            // Server response timeout
+            Log.e(TAG, "ClientTask SocketTimeoutException");
+            e.printStackTrace();
+        } catch (SocketException e) {
+            // 1. IO on socket after closed by yourself; 2. Connect reset by peer / Connection reset.
+            Log.e(TAG, "ClientTask SocketException");
+            e.printStackTrace();
+        } catch (EOFException e) {
+            // 当输入过程中意外到达文件或流的末尾时，抛出此异常。
+            Log.e(TAG, "ClientTask EOFException");
+            e.printStackTrace();
+        } catch (StreamCorruptedException e) {
+            Log.e(TAG, "ClientTask StreamCorruptedException");
+            e.printStackTrace();
+        } catch (UnknownHostException e) {
+            Log.e(TAG, "ClientTask UnknownHostException");
+            e.printStackTrace();
+        } catch (IOException e) {
+            Log.e(TAG, "ClientTask IOException");
+            e.printStackTrace();
         }
+    }
 
+    @Override
+    protected void onPostExecute(Void result) {
+        Log.e("LOST CLIENT", "CLIENT TASK SHOULD NOT BREAK.");
     }
 
     private void refreshUI(String str) {
@@ -221,9 +157,49 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         SimpleDynamoActivity.uiHandler.sendMessage(uiMsg);
     }
 
-    @Override
-    protected void onPostExecute(Void result) {
-        Log.e("LOST CLIENT", "CLIENT TASK SHOULD NOT BREAK.");
-    }
+//    private void skipLostPort(NMessage msg) {
+//        if (msg.getTgtPort().equals(GV.lostPort)) {
+//            Log.e("SKIP LOST PORT", "BEFORE SKIP MSG: " + msg.toString());
+//            String lostId = Dynamo.genHash(GV.lostPort);
+//            switch (msg.getMsgType()) {
+//                case INSERT:
+//                    if (Dynamo.isLastNode(lostId)) {
+//                        msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
+//                        GV.notifySuccMsgL.add(msg);
+//                        this.skipMsg = true;
+//                    } else {
+//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
+//                        msg.setSndPort(GV.MY_PORT);
+//                    }
+//                    break;
+//
+//                case DELETE:
+//                    if (Dynamo.isLastNode(lostId)) {
+//                        msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
+//                        GV.notifySuccMsgL.add(msg);
+//                        this.skipMsg = true;
+//                    } else {
+//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
+//                        msg.setSndPort(GV.MY_PORT);
+//                    }
+//                    break;
+//
+//                case QUERY:
+//                    if (Dynamo.isFirstNode(lostId)) {
+//                        msg.setTgtPort(GV.MY_PORT);
+//                    } else {
+//                        msg.setTgtPort(Dynamo.getPredPortOfPort(GV.lostPort));
+//                    }
+//                    msg.setSndPort(GV.MY_PORT);
+//                    break;
+//
+//                default:
+//                    break;
+//            }
+//            Log.e("SKIP LOST PORT", "AFTER SKIP MSG: " + msg.toString());
+//        }
+//
+//    }
+
 
 }

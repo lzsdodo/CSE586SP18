@@ -51,6 +51,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
             case DELETE:
                 GV.signalSendQ.offer(msgRecv);
                 GV.msgRecvQ.offer(msgRecv);
+                this.detectSkipMsg(msgRecv);
                 break;
 
             case RESULT_ONE:
@@ -68,6 +69,35 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         this.refreshUI(msgRecv.toString());
     }
 
+
+    private void detectSkipMsg(NMessage msg) {
+        // skip [0]/[1], pred post
+        switch (msg.getMsgType()) {
+            case INSERT:
+                if (Dynamo.detectSkipMsg(msg.getMsgKey(), msg.getSndPort(), msg.getTgtPort())) {
+                    msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
+                    msg.setSndPort(GV.MY_PORT);
+                    msg.setTgtPort(GV.PRED_PORT);
+                    GV.notifyPredMsgL.add(msg);
+                    GV.lostPort = GV.PRED_PORT;
+                    Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
+                }
+                break;
+            case DELETE:
+                if (Dynamo.detectSkipMsg(msg.getMsgKey(), msg.getSndPort(), msg.getTgtPort())) {
+                    msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
+                    msg.setSndPort(GV.MY_PORT);
+                    msg.setTgtPort(GV.PRED_PORT);
+                    GV.notifyPredMsgL.add(msg);
+                    GV.lostPort = GV.PRED_PORT;
+                    Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
+                }
+                break;
+            default: break;
+        }
+
+    }
+
     private void tcpHandleRecvSignal(String msgId) {
         if (GV.waitMsgIdSet.contains(msgId)) {
             int delta = (int) System.currentTimeMillis() - GV.waitTimeMap.get(msgId);
@@ -76,7 +106,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
             GV.waitTimeMap.remove(msgId);
         }
     }
-
 
     // DONE
     @Override

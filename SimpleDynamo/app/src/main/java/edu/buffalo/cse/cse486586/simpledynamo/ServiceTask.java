@@ -109,13 +109,17 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
             case RESULT_ONE:
                 Log.d("HANDLE RESULT ONE", msg.getMsgBody());
-                GV.resultOneMap.put(msg.getMsgKey(), msg.getMsgVal());
-                GV.needWaiting = false;
+                if (GV.needWaiting) {
+                    GV.resultOneMap.put(msg.getMsgKey(), msg.getMsgVal());
+                    GV.needWaiting = false;
+                }
                 break;
 
             case RESULT_ALL:
-                Log.d("HANDLE RESULT ALL", msg.getMsgBody());
-                GV.resultAllMap.put(msg.getMsgKey(), msg.getMsgVal());
+                if (GV.needWaiting) {
+                    Log.d("HANDLE RESULT ALL", msg.getMsgBody());
+                    GV.resultAllMap.put(msg.getMsgKey(), msg.getMsgVal());
+                }
                 break;
 
             case RESULT_ALL_FLAG:

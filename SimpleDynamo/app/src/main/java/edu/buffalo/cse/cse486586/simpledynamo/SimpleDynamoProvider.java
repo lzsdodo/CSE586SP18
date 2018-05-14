@@ -287,7 +287,6 @@ public class SimpleDynamoProvider extends ContentProvider {
         return affectedRows;
     }
 
-
     // Basic insert, query and delete operation on database
     private Cursor queryOne(String key) {
         String[] columns = new String[] {SQLiteHelper.COL_NAME_KEY, SQLiteHelper.COL_NAME_VALUE};

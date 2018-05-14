@@ -51,37 +51,53 @@ public class Dynamo {
     public String getPredPort() {return this.predPort;}
     public String getPredID() {return this.predID;}
 
-    // TODO HANDLE FAIL SEND
-    public boolean detectFail(String key, String sndPort, String tgtPort) {
-        // INSERT AND DELETE
-        String kid = genHash(key);
-        ArrayList<String> perferIdList = getPerferIdList(kid);
-        int sndIndex = perferIdList.indexOf(genHash(sndPort));
-        int tgtIndex = perferIdList.indexOf(genHash(tgtPort));
+    // ALREADY TEST
+    static boolean detectSkipMsg(String key, String sndPort, String tgtPort) {
+        // ONLY FOR INSERT AND DELETE
+        String TAG = "DYNAMO DETECT SKIP";
+        String kid = Dynamo.genHash(key);
+        ArrayList<String> perferIdList = Dynamo.getPerferIdList(kid);
+        int sndIndex = perferIdList.indexOf(Dynamo.genHash(sndPort));
+        int tgtIndex = perferIdList.indexOf(Dynamo.genHash(tgtPort));
+        Log.d(TAG, "SEND PORT=" + sndPort + "; TGT PORT=" + tgtPort + "; " +
+                "PERFER PORT LIST=" + Dynamo.getPerferPortList(perferIdList));
 
-        if (sndIndex<0 && tgtIndex==1) {
-            // skip [0] node
-            GV.lostPort = GV.idPortMap.get(perferIdList.get(0));
-            return true;
-
-        } else if (sndIndex==0 && tgtIndex==2) {
-            // Skip [1] node, store in notifyPredNode
-            GV.lostPort = GV.idPortMap.get(perferIdList.get(tgtIndex-1));
-            return true;
-
-        } else {
-            Log.e(TAG, "DETECT FAIL ERROR: \nSEND PORT=" + sndPort + "; TGT PORT=" +
-                    tgtPort + "; PERFER PORT LIST=" + getPerferPortList(perferIdList));
+        if (tgtIndex < 0) {
+            Log.e(TAG,"ERROR!!!!!!");
+            return false;
         }
 
+        if (sndIndex>=0 && sndIndex==tgtIndex) {
+            Log.d(TAG,"Send to self...");
+            return false;
+        }
+
+        if (tgtIndex==0) {
+            Log.d(TAG,"First node...");
+            return false;
+        }
+
+        if (sndIndex==0 && tgtIndex==1) {
+            Log.d(TAG,"First to second...");
+            return false;
+        }
+
+        if (sndIndex==1 && tgtIndex==2) {
+            Log.d(TAG,"Second to third...");
+            return false;
+        }
+
+        if ((sndIndex!=0 && tgtIndex == 1) || (sndIndex==0 && tgtIndex==2)) {
+            // skip [0]/[1] node
+            GV.lostPort = GV.PRED_PORT;
+            Log.e(TAG,"Lost Port which index is: " + (tgtIndex-1) + " => " + GV.lostPort);
+            return true;
+        }
+
+        Log.e(TAG, "DETECT FAIL ERROR!!!!!!!!!!!\nSHOULD NOT EXIST!!!");
         return false;
     }
 
-
-
-
-
-    // ALREADY TEST
     public String getFirstPort(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
         String firstPort = GV.idPortMap.get(perferIdList.get(0));

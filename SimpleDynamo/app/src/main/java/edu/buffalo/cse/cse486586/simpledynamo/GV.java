@@ -56,8 +56,6 @@ public class GV {
     static String lostPort = null;
 
 
-
-
     // TODO HANDLE FAILUE: CHANGE TO FALSE
     static boolean deleteTable = true;
 
