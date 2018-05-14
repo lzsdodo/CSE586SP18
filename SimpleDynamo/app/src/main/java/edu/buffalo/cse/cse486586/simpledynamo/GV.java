@@ -46,22 +46,22 @@ public class GV {
     static Queue<NMessage> msgUpdateSendQ = new LinkedList<NMessage>();
     static Queue<NMessage> msgUpdateRecvQ = new LinkedList<NMessage>();
 
+    static HashMap<String, Queue<NMessage>> storedMap = new HashMap<String, Queue<NMessage>>();
+
     // Signal To Send
     static Queue<NMessage> signalSendQ = new LinkedList<NMessage>();
     // Msg that wait signal to confirm
+    static Queue<NMessage> msgResendQ = new LinkedList<NMessage>();
     static Queue<NMessage> waitMsgQueue = new LinkedList<NMessage>();
     static Set<String> waitMsgIdSet = new HashSet<String>();
     static HashMap<String, Integer> waitTimeMap = new HashMap<String, Integer>();
 
     static String lostPort = null;
 
-    static String lastRecoverPort = "";
-    static long lastRecover = 0;
-
-
     // TODO HANDLE FAILUE: CHANGE TO FALSE
     static boolean deleteTable = true;
 
+    static boolean resendFlag = true;
 
 }
 

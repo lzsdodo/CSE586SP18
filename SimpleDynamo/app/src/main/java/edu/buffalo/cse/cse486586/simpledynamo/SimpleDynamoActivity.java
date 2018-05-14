@@ -15,6 +15,9 @@ import android.view.Menu;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class SimpleDynamoActivity extends Activity {
 
@@ -66,14 +69,22 @@ public class SimpleDynamoActivity extends Activity {
         GV.MY_PORT_INFO = "PRED: " + dynamo.getPredPort() + "; SELF: " + GV.MY_PORT + "; SUCC: " + dynamo.getSuccPort();
         mTextView.append(GV.MY_PORT_INFO + "\n");
 
+        ArrayList<String> ports = Dynamo.PORTS;
+        ports.remove(GV.MY_PORT);
+
+        for (String port: ports) {
+            Queue<NMessage> portQ = new LinkedList<NMessage>();
+            GV.storedMap.put(port, portQ);
+        }
+
         // Update Lost Data
-        this.updateLostData();
+        this.updateLostData(ports);
 
         //this.test();
 	}
 
-	private void updateLostData() {
-        for (String port: Dynamo.PORTS) {
+	private void updateLostData(ArrayList<String> ports) {
+        for (String port: ports) {
             GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
                     GV.MY_PORT, port, "$"));
         }

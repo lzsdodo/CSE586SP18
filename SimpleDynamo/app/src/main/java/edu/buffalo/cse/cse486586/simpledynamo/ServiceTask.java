@@ -6,6 +6,8 @@ import android.os.AsyncTask;
 import android.os.Message;
 import android.util.Log;
 
+import java.util.Queue;
+
 
 public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
@@ -13,6 +15,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
     private ContentResolver qCR;
     private long lastCheckTime;
+    private long lastDetectTime;
 
     @Override
     protected Void doInBackground (ContentResolver... cr) {
@@ -20,6 +23,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
         this.qCR = cr[0];
         this.lastCheckTime = System.currentTimeMillis();
+        this.lastDetectTime = this.lastCheckTime;
 
         while (true) {
             try {
@@ -38,9 +42,14 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
                 // TODO Signal Service
                 // Check latest msg that wait to confirm
-                if (System.currentTimeMillis() - lastCheckTime > 200) {
-                    this.lastCheckTime = this.signalService();
+                if (System.currentTimeMillis() - this.lastDetectTime > 100) {
+                    this.signalService();
+                    this.lastDetectTime = System.currentTimeMillis();
+                }
 
+
+                // TODO DETECT
+                if (System.currentTimeMillis() - lastDetectTime > 500) {
                     if (!GV.notifyPredMsgL.isEmpty()) {
                         GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.IS_ALIVE,
                                 GV.MY_PORT, GV.PRED_PORT, "___"));
@@ -49,6 +58,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                         GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.IS_ALIVE,
                                 GV.MY_PORT, GV.SUCC_PORT, "___"));
                     }
+                    this.lastDetectTime = System.currentTimeMillis();
                 }
 
             } catch (Exception e) {
@@ -57,38 +67,33 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         }
     }
 
-    private long signalService() {
+    private void signalService() {
         if (!(GV.waitMsgQueue.isEmpty())) {
             NMessage checkMsg = GV.waitMsgQueue.peek();
             String msgId = checkMsg.getMsgID();
 
             if (GV.waitMsgIdSet.contains(msgId)) {
                 int lastTime = GV.waitTimeMap.get(msgId);
-                int nowTime = (int) System.currentTimeMillis();
-                int deltaTime = nowTime - lastTime;
+                int deltaTime = (int) System.currentTimeMillis() - lastTime;
 
-                if (deltaTime > 800) {
-                    // TODO Handle Lost
-                    NMessage msg = GV.waitMsgQueue.poll(); // Remove
-                    this.handleLostMsg(msg); // Handle
-                    Log.e("SIGNAL TIMEOUT", lastTime + " - " + nowTime +
-                            " = " + deltaTime + " (delta) for msg: " + msg.toString());
-                } else {
-                    if (checkMsg.getTgtPort().equals(GV.lostPort)) {
-                        NMessage msg = GV.waitMsgQueue.poll();
-                        this.handleLostMsg(msg);
-                        Log.v("SAME TO LOST PORT", "CONTINUE WAIT: delta time = " + deltaTime);
-                    }
-                    Log.v("SERVICE SIGNAL", "CONTINUE WAIT: delta time = " + deltaTime);
-                    return System.currentTimeMillis();
-                }
+                // TODO Handle Lost Msg
+                NMessage msg = GV.waitMsgQueue.poll(); // Remove
+                this.handleLostMsg(msg);    // Handle msg
+                this.storeLostMsg(msg);     // Store msg
+                Log.e("SIGNAL TIMEOUT", lastTime + " (delta) " + deltaTime +
+                        " for msg: " + msg.toString());
             } else {
                 // Not contain this wait msg anymore
                 GV.waitMsgQueue.poll(); // Remove and check next
                 Log.v("SERVICE SIGNAL", "NOT EXIST");
             }
         }
-        return System.currentTimeMillis();
+    }
+
+    private void storeLostMsg(NMessage msg) {
+        // 0. store
+        Queue<NMessage> portQ = GV.storedMap.get(msg.getTgtPort());
+        portQ.offer(msg);
     }
 
     private void handleLostMsg(NMessage msg) {
@@ -206,21 +211,20 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
         switch (msg.getMsgType()) {
             case RESTART:
-                GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.IS_ALIVE,
-                        GV.MY_PORT, msg.getSndPort(), "___"));
+                if (msg.getSndPort().equals(GV.PRED_PORT) || msg.getSndPort().equals(GV.SUCC_PORT)) {
+                    this.prepareUpdate(msg.getSndPort());
+                }
+                this.buildResendMsg(msg.getSndPort());
                 break;
 
             case IS_ALIVE:
-                Log.e("IS_ALIVE", "SEND BACK TO: " + msg.getSndPort() + "; LOST PORT: " + GV.lostPort);
+                Log.e("IS_ALIVE", "SEND BACK TO: " + msg.getSndPort());
                 GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.RECOVERY,
                         GV.MY_PORT, msg.getSndPort(), "___"));
                 break;
 
             case RECOVERY:
-                if (sndPort.equals(GV.lostPort) || GV.lostPort == null) {
-                    this.prepareUpdate(msg.getSndPort());
-                    GV.lostPort = null;
-                }
+                this.prepareUpdate(msg.getSndPort());
                 break;
 
             case UPDATE_INSERT:
@@ -246,6 +250,19 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 Log.e("", "SHOULD NOT HAPPEN!!!!!!!!!!!!");
                 break;
         }
+    }
+
+    private void buildResendMsg(String restartPort) {
+        Queue<NMessage> portQ = GV.storedMap.get(restartPort);
+        while (!portQ.isEmpty()) {
+            GV.msgResendQ.offer(portQ.poll());
+        }
+
+        while (!GV.waitMsgQueue.isEmpty()) {
+            GV.msgResendQ.offer(GV.waitMsgQueue.poll());
+        }
+        GV.waitMsgIdSet.clear();
+        GV.waitTimeMap.clear();
     }
 
     // TESTSERVICE UPDATE ERROR

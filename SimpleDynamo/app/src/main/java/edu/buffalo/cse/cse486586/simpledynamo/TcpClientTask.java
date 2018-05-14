@@ -33,6 +33,12 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
         while (true) {
 
+            while (!GV.msgResendQ.isEmpty()) {
+                NMessage resendMsg = GV.msgResendQ.poll();
+                this.sendMsg(resendMsg);
+                this.recordWaitMsg(resendMsg);
+            }
+
             // 发送心跳信号
             if (!GV.signalSendQ.isEmpty()) {
                 NMessage recvMsg = GV.signalSendQ.poll();
@@ -54,19 +60,40 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
             // 常规信号
             if (!GV.msgSendQ.isEmpty()) {
                 NMessage msg = GV.msgSendQ.poll();
+                // Send msg and record according to type
+                this.recordWaitMsg(msg);
                 this.sendMsg(msg);
             }
         }
     }
+
+    private void recordWaitMsg(NMessage msg) {
+        switch (msg.getMsgType()) {
+            case QUERY:
+            case INSERT:
+            case DELETE:
+                if (!msg.getTgtPort().equals(GV.MY_PORT)) {
+                    String msgId = msg.getMsgID();
+                    long now = System.currentTimeMillis();
+                    GV.waitMsgQueue.offer(msg);
+                    GV.waitMsgIdSet.add(msgId);
+                    GV.waitTimeMap.put(msgId, (int) now);
+                    Log.d("RECORD SIGNAL", msg.toString());
+                }
+                break;
+
+            default:
+                Log.v("RECORD SIGNAL", "OTHER TYPE, NO NEED TO RECORD");
+                break;
+        }
+    }
+
 
     synchronized private void sendMsg(NMessage msg) {
         String msgToSend = msg.toString();
         String tgtPort = msg.getTgtPort();
         Integer remotePort = Integer.parseInt(tgtPort) * 2;
         Log.v("HANDLE SEND MSG", "" + msgToSend);
-
-        // Send msg and record according to type
-        this.recordWaitMsg(msg);
 
         Socket socket = new Socket();
         try {
@@ -115,27 +142,6 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         } catch (IOException e) {
             Log.e(TAG, "ClientTask IOException");
             e.printStackTrace();
-        }
-    }
-
-    private void recordWaitMsg(NMessage msg) {
-        switch (msg.getMsgType()) {
-            case QUERY:
-            case INSERT:
-            case DELETE:
-                if (!msg.getTgtPort().equals(GV.MY_PORT)) {
-                    String msgId = msg.getMsgID();
-                    long now = System.currentTimeMillis();
-                    GV.waitMsgQueue.offer(msg);
-                    GV.waitMsgIdSet.add(msgId);
-                    GV.waitTimeMap.put(msgId, (int) now);
-                    Log.d("RECORD SIGNAL", msg.toString());
-                }
-                break;
-
-            default:
-                Log.v("RECORD SIGNAL", "OTHER TYPE, NO NEED TO RECORD");
-                break;
         }
     }
 

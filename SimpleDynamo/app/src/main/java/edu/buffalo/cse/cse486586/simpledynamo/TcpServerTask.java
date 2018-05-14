@@ -29,7 +29,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
     private InputStream in;
     private BufferedReader br;
 
-    // TODO
     private void handleTcpServerMsg(NMessage msgRecv) {
 
         switch (msgRecv.getMsgType()) {
@@ -82,6 +81,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                     Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
                 }
                 break;
+
             case DELETE:
                 if (Dynamo.detectSkipMsg(msg.getMsgKey(), msg.getSndPort(), msg.getTgtPort())) {
                     msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
@@ -92,7 +92,9 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                     Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
                 }
                 break;
-            default: break;
+
+            default:
+                break;
         }
 
     }
