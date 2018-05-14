@@ -56,7 +56,6 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
             // 常规信号
             if (!GV.msgSendQ.isEmpty()) {
                 NMessage msg = GV.msgSendQ.poll();
-//                if (GV.lostPort!=null) {this.skipLostPort(msg);}
                 if (!this.skipMsg) {this.sendMsg(msg);}
                 this.skipMsg = false;
             }
@@ -64,61 +63,15 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
-
-//    private void skipLostPort(NMessage msg) {
-//        if (msg.getTgtPort().equals(GV.lostPort)) {
-//
-//            String lostId = Dynamo.genHash(GV.lostPort);
-//            switch (msg.getMsgType()) {
-//                case INSERT:
-//                    if (Dynamo.isLastNode(lostId)) {
-//                        msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-//                        GV.notifySuccMsgL.add(msg);
-//                        this.skipMsg = true;
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-//                        msg.setSndPort(GV.MY_PORT);
-//                    }
-//                    break;
-//
-//                case DELETE:
-//                    if (Dynamo.isLastNode(lostId)) {
-//                        msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
-//                        GV.notifySuccMsgL.add(msg);
-//                        this.skipMsg = true;
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-//                        msg.setSndPort(GV.MY_PORT);
-//                    }
-//                    break;
-//
-//                case QUERY:
-//                    if (Dynamo.isFirstNode(lostId)) {
-//                        msg.setTgtPort(GV.MY_PORT);
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getPredPortOfPort(GV.lostPort));
-//                    }
-//                    msg.setSndPort(GV.MY_PORT);
-//                    break;
-//
-//                default:
-//                    break;
-//            }
-//        }
-//    }
-
-
     private void recordWaitMsg(NMessage msg) {
         switch (msg.getMsgType()) {
             case QUERY:
             case INSERT:
-            case DELETE:
                 if (!msg.getTgtPort().equals(GV.MY_PORT)) {
                     String msgId = msg.getMsgID();
-                    long now = System.currentTimeMillis();
-                    GV.waitMsgQueue.offer(msg);
                     GV.waitMsgIdSet.add(msgId);
-                    GV.waitTimeMap.put(msgId, (int) now);
+                    GV.waitMsgIdQueue.offer(msgId);
+                    GV.waitMsgMap.put(msgId, msg);
                     Log.d("RECORD SIGNAL", msg.toString());
                 }
                 break;
@@ -192,7 +145,5 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
     protected void onPostExecute(Void result) {
         Log.e("LOST CLIENT", "CLIENT TASK SHOULD NOT BREAK.");
     }
-
-
 
 }

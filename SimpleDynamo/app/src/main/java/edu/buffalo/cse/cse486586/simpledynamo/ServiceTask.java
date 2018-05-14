@@ -6,6 +6,9 @@ import android.os.AsyncTask;
 import android.os.Message;
 import android.util.Log;
 
+import java.util.ArrayList;
+import java.util.Queue;
+
 
 public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
@@ -13,6 +16,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
     private ContentResolver qCR;
     private long lastCheckTime;
+    private long lastDetectTime;
 
     @Override
     protected Void doInBackground (ContentResolver... cr) {
@@ -20,6 +24,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
         this.qCR = cr[0];
         this.lastCheckTime = System.currentTimeMillis();
+        this.lastDetectTime = this.lastCheckTime;
 
         while (true) {
             try {
@@ -38,8 +43,14 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
                 // TODO Signal Service
                 // Check latest msg that wait to confirm
-                if (System.currentTimeMillis() - lastCheckTime > 200) {
-                    this.lastCheckTime = this.signalService();
+                if (System.currentTimeMillis() - this.lastCheckTime > 500) {
+                    this.signalService();
+                    this.lastCheckTime = System.currentTimeMillis();
+                }
+
+                if (System.currentTimeMillis() - this.lastDetectTime > 1000) {
+                    this.detectAlives();
+                    this.lastDetectTime = System.currentTimeMillis();
                 }
 
             } catch (Exception e) {
@@ -48,42 +59,20 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         }
     }
 
-    private long signalService() {
-        if (!(GV.waitMsgQueue.isEmpty())) {
-            NMessage checkMsg = GV.waitMsgQueue.peek();
-            String msgId = checkMsg.getMsgID();
 
-            if (GV.waitMsgIdSet.contains(msgId)) {
-                int lastTime = GV.waitTimeMap.get(msgId);
-                int nowTime = (int) System.currentTimeMillis();
-                int deltaTime = nowTime - lastTime;
-
-                if (deltaTime > 800) {
-                    // TODO Handle Lost
-                    NMessage msg = GV.waitMsgQueue.poll(); // Remove
-                    this.handleLostMsg(msg); // Handle
-                    Log.e("SIGNAL TIMEOUT", lastTime + " - " + nowTime + " = " + deltaTime +
-                            " (delta) for msg: " + msg.toString());
-                } else {
-                    Log.v("SERVICE SIGNAL", "CONTINUE WAIT: delta time = " + deltaTime);
-                    return System.currentTimeMillis();
-                }
-            } else {
-                // Not contain this wait msg anymore
-                GV.waitMsgQueue.poll(); // Remove and check next
-                Log.v("SERVICE SIGNAL", "NOT EXIST");
-            }
+    private void storeLostMsg(NMessage msg) {
+        if (msg.getMsgType().equals(NMessage.TYPE.INSERT)) {
+            msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
+            Queue<NMessage> portQ = GV.notifyPortQueueM.get(msg.getTgtPort());
+            portQ.offer(msg);
         }
-        return System.currentTimeMillis();
     }
 
     private void handleLostMsg(NMessage msg) {
-        Log.e("LOST PORT", "LOST PORT: " + GV.lostPort);
-        this.refreshUI("===== =====\nLOST PORT: " + GV.lostPort + "\n===== =====");
-
         // 1. Set lost
-        GV.lostPort = msg.getTgtPort();
-        String tgtPort = msg.getTgtPort();
+        String lostPort = msg.getTgtPort();
+        Log.e("LOST PORT", "LOST PORT: " + lostPort);
+        this.refreshUI("===== =====\nLOST PORT: " + lostPort + "\n===== =====");
 
         String kid = msg.getMsgKey();
         String firstPort = Dynamo.getFirstPort(kid);
@@ -94,36 +83,20 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         Log.e("SKIP LOST PORT", "BEFORE SKIP MSG: " + msg.toString());
         switch (msg.getMsgType()) {
             case INSERT:
-                if (tgtPort.equals(lastPort)) {
-                    msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-                    GV.notifySuccMsgQ.offer(msg);
-                    // DO NOT SEND MSG
-                } else {
-                    msg.setTgtPort(Dynamo.getSuccPortOfPort(tgtPort));
+                if (!lostPort.equals(lastPort)) {
+                    msg.setTgtPort(Dynamo.getSuccPortOfPort(lostPort));
                     msg.setSndPort(GV.MY_PORT);
                     GV.msgSendQ.offer(msg);
                     // GO ON SEND MSG
                 }
-                break;
-
-            case DELETE:
-                if (tgtPort.equals(lastPort)) {
-                    msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
-                    GV.notifySuccMsgQ.offer(msg);
-                    // DO NOT SEND MSG
-                } else {
-                    msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-                    msg.setSndPort(GV.MY_PORT);
-                    GV.msgSendQ.offer(msg);
-                    // GO ON SEND MSG
-                }
+                this.sendLostMsg(msg, lostPort, lastPort);
                 break;
 
             case QUERY:
-                if (tgtPort.equals(firstPort)) {
+                if (lostPort.equals(firstPort)) {
                     msg.setTgtPort(lastPort);
                 } else {
-                    msg.setTgtPort(Dynamo.getPredPortOfPort(tgtPort));
+                    msg.setTgtPort(Dynamo.getPredPortOfPort(lostPort));
                 }
                 msg.setSndPort(GV.MY_PORT);
                 GV.msgSendQ.offer(msg);
@@ -133,6 +106,64 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 break;
         }
         Log.e("SKIP LOST PORT", "AFTER SKIP MSG: " + msg.toString());
+    }
+
+    private void sendLostMsg(NMessage msg, String lostPort, String lastPort) {
+        // send to second port
+        if (lostPort.equals(GV.SUCC_PORT)) {
+            NMessage nMsg = msg.copy();
+            nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
+            nMsg.setTgtPort(GV.PRED_PORT);
+            nMsg.setCmdPort(lostPort);
+            nMsg.setSndPort(GV.MY_PORT);
+            GV.msgSendQ.offer(nMsg);
+
+        } else {
+            NMessage nMsg = msg.copy();
+            nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
+            nMsg.setTgtPort(GV.SUCC_PORT);
+            nMsg.setCmdPort(lostPort);
+            nMsg.setSndPort(GV.MY_PORT);
+            GV.msgSendQ.offer(nMsg);
+        }
+    }
+
+    private void detectAlives() {
+        ArrayList<String> ports = Dynamo.PORTS;
+        ports.remove(GV.MY_PORT);
+        for (String port: ports) {
+            Queue<NMessage> portQ = GV.notifyPortQueueM.get(port);
+            if (!portQ.isEmpty()) {
+                GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.IS_ALIVE,
+                        GV.MY_PORT, port, "___"));
+            }
+        }
+    }
+
+
+    private void signalService() {
+        if (!(GV.waitMsgIdQueue.isEmpty())) {
+            String msgId = GV.waitMsgIdQueue.peek();
+
+            if (!GV.waitMsgIdSet.contains(msgId)) {
+                // Not contain this wait msg anymore
+                GV.waitMsgIdQueue.poll(); // Remove and check next
+                Log.v("RECEIVE SIGNAL", "ALREADY DELETE FROM WAIT QUEUE: " + msgId);
+
+            } else {
+                // TODO Handle LOST MSG
+                NMessage msg = GV.waitMsgMap.get(msgId);
+                // Handle: Send to next and
+                this.handleLostMsg(msg);
+                // Store
+                this.storeLostMsg(msg);
+                // Delete
+                GV.waitMsgIdSet.remove(msgId);
+                GV.waitMsgMap.remove(msgId);
+                GV.waitMsgIdQueue.poll();
+
+            }
+        }
     }
 
     private void normalSerive(NMessage msg) {
@@ -191,20 +222,19 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         Log.e("HANDLE UPDATE MSG", msg.toString());
         String cmdPort = msg.getCmdPort();
         switch (msg.getMsgType()) {
+
             case RESTART:
-                GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.IS_ALIVE,
-                        GV.MY_PORT, msg.getSndPort(), "___"));
+                Log.e("RESTART", "SEND BACK TO " + msg.getSndPort());
+                this.prepareUpdate(msg.getSndPort());
                 break;
+
             case IS_ALIVE:
                 GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.RECOVERY,
                         GV.MY_PORT, msg.getSndPort(), "___"));
                 break;
+
             case RECOVERY:
-                Log.e("RECOVERY", "SEND BACK TO " + msg.getSndPort());
-                if ((cmdPort.equals(GV.lostPort)) || GV.lostPort == null) {
-                    this.prepareUpdate(msg.getSndPort());
-                    GV.lostPort = null;
-                }
+                this.prepareUpdate(msg.getSndPort());
                 break;
 
             case UPDATE_INSERT:
@@ -234,25 +264,12 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
     // TEST
     private void prepareUpdate(String sndPort) {
-        if (sndPort.equals(GV.PRED_PORT)) {
-            this.refreshUI("RECOVERING PRED: " + GV.PRED_PORT +
-                    " with size " + GV.notifyPredMsgQ.size());
-            while (!GV.notifyPredMsgQ.isEmpty()) {
-                GV.msgUpdateSendQ.offer(GV.notifyPredMsgQ.poll());
-            }
-            GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
-                        GV.MY_PORT, sndPort, "FROM SUCC PORT"));
-        }
+        Queue<NMessage> portQ = GV.notifyPortQueueM.get(sndPort);
+        this.refreshUI("RECOVERING PORT: " + sndPort + " with size " + portQ.size());
 
-        if (sndPort.equals(GV.SUCC_PORT)) {
-            this.refreshUI("RECOVERING SUCC: " + GV.SUCC_PORT +
-                    " with size " + GV.notifySuccMsgQ.size());
-            while (!GV.notifySuccMsgQ.isEmpty()) {
-                GV.msgUpdateSendQ.offer(GV.notifySuccMsgQ.poll());
-            }
-            GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
-                    GV.MY_PORT, sndPort, "FROM PRED PORT"));
-        }
+        while (!portQ.isEmpty()) {GV.msgUpdateSendQ.offer(portQ.poll());}
+        GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
+                GV.MY_PORT, sndPort, "FROM "+GV.MY_PORT));
         this.refreshUI("PREPARE UPDATE SEND QUEUE SIZE: " + GV.msgUpdateSendQ.size());
     }
 
