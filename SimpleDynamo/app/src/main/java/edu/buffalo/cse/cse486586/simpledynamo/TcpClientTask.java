@@ -79,7 +79,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
-    private void sendMsg(NMessage msg) {
+    synchronized private void sendMsg(NMessage msg) {
         String msgToSend = msg.toString();
         String tgtPort = msg.getTgtPort();
         Integer remotePort = Integer.parseInt(tgtPort) * 2;
@@ -96,7 +96,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
             this.connFlag = false;
             if (socket.isConnected()) {
                 Log.v(TAG, "CONN SERVER: " + socket.getRemoteSocketAddress());
-                socket.setSendBufferSize(16 * 1024);
+                socket.setSendBufferSize(8192);
                 socket.setSoTimeout(200);
 
                 this.in = socket.getInputStream();

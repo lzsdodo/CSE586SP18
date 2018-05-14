@@ -9,8 +9,9 @@ public class NMessage {
     enum TYPE {
         NONE,
         INSERT, DELETE, QUERY, SIGNAL,
-        RESULT_ONE, RESULT_ALL, RESULT_ALL_COMLETED,
-        RECOVERY, ALIVE,
+        RESULT_ONE, RESULT_ALL,
+        RESULT_ALL_FLAG, RESULT_ALL_COMLETED,
+        RESTART, RECOVERY, IS_ALIVE,
         UPDATE_INSERT, UPDATE_DELETE, UPDATE_COMPLETED,
     }
 
@@ -24,7 +25,7 @@ public class NMessage {
     private String msgVal  = null;
 
     public NMessage() {
-        long mid = Integer.parseInt(GV.MY_PORT.substring(2) + "10000") + GV.msgCounter++;
+        long mid = Integer.parseInt(GV.MY_PORT.substring(2) + "0000") + GV.msgCounter++;
         this.msgID = mid + "";
         this.sndPort = GV.MY_PORT;
     }
@@ -36,6 +37,35 @@ public class NMessage {
         this.tgtPort = tgtPort;
         this.msgKey = key;
         this.msgVal = value;
+        this.msgBody = this.msgKey + "<>" + this.msgVal;
+    }
+
+    public NMessage(TYPE msgType, String cmdPort, String tgtPort, String key) {
+        this();
+        this.msgType = msgType;
+        this.cmdPort = cmdPort;
+        this.tgtPort = tgtPort;
+        this.msgKey = key;
+        switch (msgType) {
+            case QUERY:
+                this.msgVal = "???"; break;
+            case DELETE:
+                this.msgVal = "xxx"; break;
+            case RESULT_ALL_FLAG:
+            case RESULT_ALL_COMLETED:
+            case UPDATE_COMPLETED:
+                this.msgVal = "$,$"; break;
+            case SIGNAL:
+                this.msgVal = "O.O"; break;
+            case RESTART:
+                this.msgVal = "^o^__RESTART"; break;
+            case IS_ALIVE:
+                this.msgVal = "^o^__ALIVE"; break;
+            case RECOVERY:
+                this.msgVal = "^o^__RECOVERY"; break;
+            default:
+                this.msgVal = "..."; break;
+        }
         this.msgBody = this.msgKey + "<>" + this.msgVal;
     }
 

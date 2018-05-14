@@ -55,7 +55,7 @@ public class Dynamo {
     public boolean detectFail(String key, String sndPort, String tgtPort) {
         // INSERT AND DELETE
         String kid = genHash(key);
-        ArrayList<String> perferIdList = this.getPerferIdList(kid);
+        ArrayList<String> perferIdList = getPerferIdList(kid);
         int sndIndex = perferIdList.indexOf(genHash(sndPort));
         int tgtIndex = perferIdList.indexOf(genHash(tgtPort));
 
@@ -71,13 +71,17 @@ public class Dynamo {
 
         } else {
             Log.e(TAG, "DETECT FAIL ERROR: \nSEND PORT=" + sndPort + "; TGT PORT=" +
-                    tgtPort + "; PERFER PORT LIST=" + this.getPerferPortList(perferIdList));
+                    tgtPort + "; PERFER PORT LIST=" + getPerferPortList(perferIdList));
         }
 
         return false;
     }
 
 
+
+
+
+    // ALREADY TEST
     public String getFirstPort(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
         String firstPort = GV.idPortMap.get(perferIdList.get(0));
@@ -94,7 +98,6 @@ public class Dynamo {
         return lastPort;
     }
 
-    // ALREADY TEST
     static boolean isFirstNode(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
         String firstId = perferIdList.get(0);
@@ -175,10 +178,16 @@ public class Dynamo {
         if (index == 0) {
             index = GV.nodeIdList.lastIndexOf(this.id);
         }
+
         this.predID = GV.nodeIdList.get(index-1);
         this.succID = GV.nodeIdList.get(index+1);
+        GV.PRED_ID = this.predID;
+        GV.SUCC_ID = this.succID;
+
         this.predPort = GV.idPortMap.get(this.predID);
         this.succPort = GV.idPortMap.get(this.succID);
+        GV.PRED_PORT = this.predPort;
+        GV.SUCC_PORT = this.succPort;
     }
 
     static String genHash(String input) {

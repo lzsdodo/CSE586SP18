@@ -37,6 +37,8 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                 this.tcpHandleRecvSignal(msgRecv.getMsgKey());
                 break;
 
+            case RESTART:
+            case IS_ALIVE:
             case RECOVERY:
             case UPDATE_INSERT:
             case UPDATE_DELETE:
@@ -53,6 +55,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
             case RESULT_ONE:
             case RESULT_ALL:
+            case RESULT_ALL_FLAG:
             case RESULT_ALL_COMLETED:
                 GV.msgRecvQ.offer(msgRecv);
                 break;
@@ -65,11 +68,10 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         this.refreshUI(msgRecv.toString());
     }
 
-
     private void tcpHandleRecvSignal(String msgId) {
         if (GV.waitMsgIdSet.contains(msgId)) {
             int delta = (int) System.currentTimeMillis() - GV.waitTimeMap.get(msgId);
-            Log.e("HANDLE TCP SIGNAL", msgId + ": " + delta + " (delta)");
+            Log.d("HANDLE TCP SIGNAL", msgId + ": " + delta + " (delta)");
             GV.waitMsgIdSet.remove(msgId);
             GV.waitTimeMap.remove(msgId);
         }
@@ -89,8 +91,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                 if (this.socket != null) {
                     Log.v(TAG, "ACCEPTED CONN: " + this.socket.getRemoteSocketAddress().toString());
                     this.socket.setTrafficClass(0x04 | 0x10);
-                    this.socket.setReceiveBufferSize(16 * 1024);
-                    this.socket.setSoTimeout(200);
+                    this.socket.setReceiveBufferSize(8192);
 
                     this.in = this.socket.getInputStream();
                     this.out = this.socket.getOutputStream();
