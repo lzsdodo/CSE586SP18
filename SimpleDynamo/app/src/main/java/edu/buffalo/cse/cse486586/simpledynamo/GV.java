@@ -55,6 +55,9 @@ public class GV {
 
     static String lostPort = null;
 
+    static HashMap<String, Queue<NMessage>> storedMap = new HashMap<String, Queue<NMessage>>();
+    static Queue<NMessage> msgResendQ = new LinkedList<NMessage>();
+
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
     static boolean deleteTable = true;
