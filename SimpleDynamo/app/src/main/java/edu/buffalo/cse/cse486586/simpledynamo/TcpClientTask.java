@@ -2,7 +2,6 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 
 
 import android.os.AsyncTask;
-import android.os.Message;
 import android.util.Log;
 
 import org.apache.http.conn.ConnectTimeoutException;
@@ -65,6 +64,50 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
+
+//    private void skipLostPort(NMessage msg) {
+//        if (msg.getTgtPort().equals(GV.lostPort)) {
+//
+//            String lostId = Dynamo.genHash(GV.lostPort);
+//            switch (msg.getMsgType()) {
+//                case INSERT:
+//                    if (Dynamo.isLastNode(lostId)) {
+//                        msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
+//                        GV.notifySuccMsgL.add(msg);
+//                        this.skipMsg = true;
+//                    } else {
+//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
+//                        msg.setSndPort(GV.MY_PORT);
+//                    }
+//                    break;
+//
+//                case DELETE:
+//                    if (Dynamo.isLastNode(lostId)) {
+//                        msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
+//                        GV.notifySuccMsgL.add(msg);
+//                        this.skipMsg = true;
+//                    } else {
+//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
+//                        msg.setSndPort(GV.MY_PORT);
+//                    }
+//                    break;
+//
+//                case QUERY:
+//                    if (Dynamo.isFirstNode(lostId)) {
+//                        msg.setTgtPort(GV.MY_PORT);
+//                    } else {
+//                        msg.setTgtPort(Dynamo.getPredPortOfPort(GV.lostPort));
+//                    }
+//                    msg.setSndPort(GV.MY_PORT);
+//                    break;
+//
+//                default:
+//                    break;
+//            }
+//        }
+//    }
+
+
     private void recordWaitMsg(NMessage msg) {
         switch (msg.getMsgType()) {
             case QUERY:
@@ -76,12 +119,12 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
                     GV.waitMsgQueue.offer(msg);
                     GV.waitMsgIdSet.add(msgId);
                     GV.waitTimeMap.put(msgId, (int) now);
-                    Log.d("RECORD SIGNAL", "createSingal: ");
+                    Log.d("RECORD SIGNAL", msg.toString());
                 }
                 break;
 
             default:
-                Log.e("RECORD SIGNAL", "OTHER TYPE, NO NEED TO RECORD " + msg.getMsgType().name());
+                Log.v("RECORD SIGNAL", "OTHER TYPE, NO NEED TO RECORD");
                 break;
         }
     }
@@ -150,56 +193,6 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         Log.e("LOST CLIENT", "CLIENT TASK SHOULD NOT BREAK.");
     }
 
-    private void refreshUI(String str) {
-        Message uiMsg = new Message();
-        uiMsg.what = SimpleDynamoActivity.UI;
-        uiMsg.obj = str;
-        SimpleDynamoActivity.uiHandler.sendMessage(uiMsg);
-    }
-
-//    private void skipLostPort(NMessage msg) {
-//        if (msg.getTgtPort().equals(GV.lostPort)) {
-//            Log.e("SKIP LOST PORT", "BEFORE SKIP MSG: " + msg.toString());
-//            String lostId = Dynamo.genHash(GV.lostPort);
-//            switch (msg.getMsgType()) {
-//                case INSERT:
-//                    if (Dynamo.isLastNode(lostId)) {
-//                        msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-//                        GV.notifySuccMsgL.add(msg);
-//                        this.skipMsg = true;
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-//                        msg.setSndPort(GV.MY_PORT);
-//                    }
-//                    break;
-//
-//                case DELETE:
-//                    if (Dynamo.isLastNode(lostId)) {
-//                        msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
-//                        GV.notifySuccMsgL.add(msg);
-//                        this.skipMsg = true;
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-//                        msg.setSndPort(GV.MY_PORT);
-//                    }
-//                    break;
-//
-//                case QUERY:
-//                    if (Dynamo.isFirstNode(lostId)) {
-//                        msg.setTgtPort(GV.MY_PORT);
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getPredPortOfPort(GV.lostPort));
-//                    }
-//                    msg.setSndPort(GV.MY_PORT);
-//                    break;
-//
-//                default:
-//                    break;
-//            }
-//            Log.e("SKIP LOST PORT", "AFTER SKIP MSG: " + msg.toString());
-//        }
-//
-//    }
 
 
 }

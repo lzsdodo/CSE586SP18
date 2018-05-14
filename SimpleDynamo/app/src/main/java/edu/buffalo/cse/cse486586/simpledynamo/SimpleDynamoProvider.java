@@ -26,7 +26,8 @@ public class SimpleDynamoProvider extends ContentProvider {
         // Just send msg to tgt and do nothing
         // And we should lock the local query to wait the msg back
         if (cmdPort == null) {
-            Log.d("L-QUERY", "1. " + key + "::" + kid);
+            Log.d("L-QUERY", "1. " + key + "::" + kid +
+                    " => " + Dynamo.getPerferPortList(kid));
 
             if (key.equals("@")) {
                 Log.d("L-QUERY", "2. QUERY @");
@@ -50,8 +51,8 @@ public class SimpleDynamoProvider extends ContentProvider {
 
                     // 1. tell succ nodes
                     GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                            GV.MY_PORT, dynamo.getSuccPort(), "*"));
-                    Log.d("L-QUERY", "3. SEND * TO SUCC " + dynamo.getSuccPort());
+                            GV.MY_PORT, GV.SUCC_PORT, "*"));
+                    Log.d("L-QUERY", "3. SEND * TO SUCC " + GV.SUCC_PORT);
 
                     // 2. wait for all nodes result
                     GV.queryAllReturnPort.clear();
@@ -66,7 +67,7 @@ public class SimpleDynamoProvider extends ContentProvider {
                 }
                 // not equal to "@" or "*"
                 else {
-                    String tgtPort = dynamo.getLastPort(kid);
+                    String tgtPort = Dynamo.getLastPort(kid);
                     Log.d("L-QUERY", "2. QUERY " + key);
 
                     if (tgtPort.equals(GV.MY_PORT)) {
@@ -77,8 +78,8 @@ public class SimpleDynamoProvider extends ContentProvider {
                             GV.resultOneMap.clear();
                             // Tell pred node to search for me
                             GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                                    GV.MY_PORT, GV.MY_PORT, key));
-                            Log.d("L-QUERY", "3. SEND TO PRED " + key);
+                                    GV.MY_PORT, GV.PRED_PORT, key));
+                            Log.d("L-QUERY", "3. SEND TO PRED " + GV.PRED_PORT + " ~" + key);
 
                             // wait for result
                             while (GV.needWaiting) {}
@@ -117,7 +118,8 @@ public class SimpleDynamoProvider extends ContentProvider {
         /* External Command */
         // Do real query
         else {
-            Log.d("E-QUERY", "1. " + key + "::" + kid);
+            Log.d("E-QUERY", "1. " + key + "::" + kid +
+                    " => " + Dynamo.getPerferPortList(kid));
 
             if (key.equals("*")) {
                 c = this.queryAll();
@@ -127,6 +129,8 @@ public class SimpleDynamoProvider extends ContentProvider {
                     GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESULT_ALL,
                             cmdPort, cmdPort, entry.getKey().toString(), entry.getValue().toString()));
                 }
+                GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESULT_ALL_FLAG,
+                        cmdPort, cmdPort, "___"));
 
                 // 判断是否最后节点
                 if (cmdPort.equals(dynamo.getSuccPort())) {
@@ -137,8 +141,8 @@ public class SimpleDynamoProvider extends ContentProvider {
 
                 } else {
                     GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                            cmdPort, dynamo.getSuccPort(),"*"));
-                    Log.d("E-QUERY", "2. QUERY * AND SEND TO SUCC " + dynamo.getSuccPort());
+                            cmdPort, GV.SUCC_PORT,"*"));
+                    Log.d("E-QUERY", "2. QUERY * AND SEND TO SUCC " + GV.SUCC_PORT);
                 }
 
             }
@@ -150,9 +154,16 @@ public class SimpleDynamoProvider extends ContentProvider {
                 if (c.getCount() == 0) {
                     Log.e("E-QUERY", "2. DID NOT INSERT YET FOR KEY " + key);
 
-                    GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                            cmdPort, GV.MY_PORT, key));
-                    Log.d("E-QUERY", "3. SEND TO SELF " + dynamo.getPort() + " ~" + key);
+                    if (Dynamo.isFirstNode(kid)) {
+                        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
+                                cmdPort, GV.MY_PORT, key));
+                        Log.d("E-QUERY", "3. SEND TO SELF " + GV.MY_PORT + " ~" + key);
+
+                    } else {
+                        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
+                                cmdPort, GV.PRED_PORT, key));
+                        Log.d("E-QUERY", "3. SEND TO PRED " + GV.PRED_PORT + " ~" + key);
+                    }
 
                 } else {
                     Log.e("E-QUERY", "2. FOUND RESULT FOR KEY " + key);
@@ -169,54 +180,52 @@ public class SimpleDynamoProvider extends ContentProvider {
     }
 
     public void dbInsert(ContentValues cv, String cmdPort, boolean allowSend) {
-        Dynamo dynamo = Dynamo.getInstance();
         String key = cv.getAsString("key");
         String val = cv.getAsString("value");
         String kid = Dynamo.genHash(key);
-        String tgtPort = dynamo.getFirstPort(kid);
+        String tgtPort = Dynamo.getFirstPort(kid);
 
         /* Local Command */
         // Just send msg to tgt and do nothing
         if (cmdPort == null) {
-            Log.d("L-INSERT", "1. " + key + "::" + kid);
+            Log.d("L-INSERT", "1. " + key + "::" + kid +
+                    " => " + Dynamo.getPerferPortList(kid));
 
             if (tgtPort.equals(GV.MY_PORT)) {
                 this.insertOne(cv);
                 GV.msgSendQ.offer(new NMessage(NMessage.TYPE.INSERT,
-                        GV.MY_PORT, dynamo.getSuccPort(), key, val));
-                Log.d("L-INSERT", "2. SEND TO SUCC " + dynamo.getSuccPort() + " ~" + key);
+                        GV.MY_PORT, GV.SUCC_PORT, key, val));
+                Log.d("L-INSERT", "2. SEND TO SUCC " + GV.SUCC_PORT + " ~" + key);
 
             } else {
                 Log.d("L-INSERT", "2. SEND TO TGT " + tgtPort + " ~" + key);
                 GV.msgSendQ.offer(new NMessage(NMessage.TYPE.INSERT,
                         GV.MY_PORT, tgtPort, key, val));
             }
-            // TODO: Maybe Can not send to fail node
-
         }
         /* External Command */
         else {
-            Log.d("E-INSERT", "1. " + key + "::" + kid);
+            Log.d("E-INSERT", "1. " + key + "::" + kid + " => " + Dynamo.getPerferPortList(kid));
             this.insertOne(cv);
             if (!Dynamo.isLastNode(kid) && allowSend) {
                 // NOT FINAL NODE & SEND TO SUCC
                 GV.msgSendQ.offer(new NMessage(NMessage.TYPE.INSERT,
-                        cmdPort, dynamo.getSuccPort(), key, val));
-                Log.d("E-INSERT", "2. INSERT AND SEND TO SUCC " + dynamo.getSuccPort() + " ~" + key);
+                        cmdPort, GV.SUCC_PORT, key, val));
+                Log.d("E-INSERT", "2. INSERT AND SEND TO SUCC " + GV.SUCC_PORT + " ~" + key);
             }
         }
     }
 
     public int dbDelete(String key, String cmdPort, boolean allowSend) {
         int affectedRows = 0;
-        Dynamo dynamo = Dynamo.getInstance();
         String kid = Dynamo.genHash(key);
-        String tgtPort = dynamo.getFirstPort(kid);
+        String tgtPort = Dynamo.getFirstPort(kid);
 
         /* Local Command */
         // Just send msg to tgt and do nothing
         if (cmdPort == null) {
-            Log.d("L-DELETE", "1. " + key + "::" + kid);
+            Log.d("L-DELETE", "1. " + key + "::" + kid +
+                    " => " + Dynamo.getPerferPortList(kid));
 
             // "@"
             if (key.equals("@")) {
@@ -228,8 +237,8 @@ public class SimpleDynamoProvider extends ContentProvider {
             if (key.equals("*")) {
                 affectedRows = this.deleteAll();
                 GV.msgSendQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                        GV.MY_PORT, dynamo.getSuccPort(), key));
-                Log.d("L-DELETE", "2. SEND * TO SUCC " + dynamo.getSuccPort());
+                        GV.MY_PORT, GV.SUCC_PORT, key));
+                Log.d("L-DELETE", "2. SEND * TO SUCC " + GV.SUCC_PORT);
 
             }
             // not "@" or "*"
@@ -237,8 +246,8 @@ public class SimpleDynamoProvider extends ContentProvider {
                 if (tgtPort.equals(GV.MY_PORT)) {
                     affectedRows = this.deleteOne(key);
                     GV.msgRecvQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                            GV.MY_PORT, dynamo.getSuccPort(), key));
-                    Log.d("L-DELETE", "2. SEND TO SUCC " + dynamo.getPort() + " ~" + key);
+                            GV.MY_PORT, GV.SUCC_PORT, key));
+                    Log.d("L-DELETE", "2. SEND TO SUCC " + GV.SUCC_PORT + " ~" + key);
 
                 } else {
                     GV.msgSendQ.offer(new NMessage(NMessage.TYPE.DELETE,
@@ -250,22 +259,23 @@ public class SimpleDynamoProvider extends ContentProvider {
         }
         /* External Command */
         else {
-            Log.d("E-DELETE", "1. " + key + "::" + kid);
+            Log.d("E-DELETE", "1. " + key + "::" + kid +
+                    " => " + Dynamo.getPerferPortList(kid));
             // Do real delete
             // "*"
             if (key.equals("*")) {
                 affectedRows = this.deleteAll();
                 Log.d("E-DELETE", "2. DELETE *");
 
-                if (cmdPort.equals(dynamo.getSuccPort())) {
+                if (cmdPort.equals(GV.SUCC_PORT)) {
                     // DONE: last node command
                     Log.d("E-DELETE", "3. DONE *");
                 } else {
                     // GO ON, Send to next node
                     if (allowSend) {
                         GV.msgSendQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                                cmdPort, dynamo.getSuccPort(),"*"));
-                        Log.d("E-DELETE", "3. SEND * TO SUCC " + dynamo.getSuccPort());
+                                cmdPort, GV.SUCC_PORT,"*"));
+                        Log.d("E-DELETE", "3. SEND * TO SUCC " + GV.SUCC_PORT);
                     }
                 }
 
@@ -278,8 +288,8 @@ public class SimpleDynamoProvider extends ContentProvider {
                 if (!Dynamo.isLastNode(kid) && allowSend) {
                     // SEND TO SUCC
                     GV.msgSendQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                            cmdPort, dynamo.getSuccPort(), key));
-                    Log.d("E-DELETE", "3. SEND TO SUCC " + dynamo.getSuccPort() + " ~" + key);
+                            cmdPort, GV.SUCC_PORT, key));
+                    Log.d("E-DELETE", "3. SEND TO SUCC " + GV.SUCC_PORT + " ~" + key);
                 }
             }
         }
@@ -343,15 +353,6 @@ public class SimpleDynamoProvider extends ContentProvider {
                 SQLiteHelper.TABLE_NAME, null, null);
         Log.v("DELETE ALL", affectedRows + " ROWS.");
         return affectedRows;
-    }
-
-    private int countRows() {
-        Cursor c = this.dbHelper.getReadableDatabase().query(
-                SQLiteHelper.TABLE_NAME, null, null, null,
-                null, null, null);
-        int rows = c.getCount();
-        Log.e("COUNT", rows + "");
-        return rows;
     }
 
     private Cursor makeCursor(HashMap<String, String> kvMap) {

@@ -51,8 +51,7 @@ public class Dynamo {
     public String getPredPort() {return this.predPort;}
     public String getPredID() {return this.predID;}
 
-    // ALREADY TEST
-    static boolean detectSkipMsg(String key, String sndPort, String tgtPort) {
+    static synchronized boolean detectSkipMsg(String key, String sndPort, String tgtPort) {
         // ONLY FOR INSERT AND DELETE
         String TAG = "DYNAMO DETECT SKIP";
         String kid = Dynamo.genHash(key);
@@ -98,18 +97,19 @@ public class Dynamo {
         return false;
     }
 
-    public String getFirstPort(String kid) {
+    // ALREADY TEST
+    static String getFirstPort(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
         String firstPort = GV.idPortMap.get(perferIdList.get(0));
-        Log.d(TAG, "My port " + this.port + " is equal to first? " + firstPort + "\nin" +
+        Log.d(TAG, "My port " + GV.MY_PORT + " is equal to first? " + firstPort + "\nin" +
                 getPerferPortList(perferIdList).toString() + " ~" + kid);
         return firstPort;
     }
 
-    public String getLastPort(String kid) {
+    static String getLastPort(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
         String lastPort = GV.idPortMap.get(perferIdList.get(N-1));
-        Log.d(TAG, "My port " + this.port + " is equal to last? " + lastPort + "\nin" +
+        Log.d(TAG, "My port " + GV.MY_PORT + " is equal to last? " + lastPort + "\nin" +
                 getPerferPortList(perferIdList).toString() + " ~" + kid);
         return lastPort;
     }
@@ -161,6 +161,10 @@ public class Dynamo {
             }
         }
         return null;
+    }
+
+    synchronized static ArrayList<String> getPerferPortList(String kid) {
+        return getPerferPortList(getPerferIdList(kid));
     }
 
     synchronized static ArrayList<String> getPerferPortList(ArrayList<String> perferIdList) {

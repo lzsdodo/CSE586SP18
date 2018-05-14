@@ -58,11 +58,11 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 int nowTime = (int) System.currentTimeMillis();
                 int deltaTime = nowTime - lastTime;
 
-                if (deltaTime > 1000) {
+                if (deltaTime > 800) {
                     // TODO Handle Lost
                     NMessage msg = GV.waitMsgQueue.poll(); // Remove
                     this.handleLostMsg(msg); // Handle
-                    Log.e("SINGAL TIMEOUT", lastTime + " - " + nowTime + " = " + deltaTime +
+                    Log.e("SIGNAL TIMEOUT", lastTime + " - " + nowTime + " = " + deltaTime +
                             " (delta) for msg: " + msg.toString());
                 } else {
                     Log.v("SERVICE SIGNAL", "CONTINUE WAIT: delta time = " + deltaTime);
@@ -78,13 +78,55 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
     }
 
     private void handleLostMsg(NMessage msg) {
-        Dynamo dynamo = Dynamo.getInstance();
         // 1. Set lost
-        // 2. Send to other node
-        // 3. Send to local
-        // 4. Store in memory
-    }
+        GV.lostPort = msg.getTgtPort();
+        String lostId = Dynamo.genHash(GV.lostPort);
 
+        // 2. Store in memory (if last to insert/delete)
+        // 3. Send to other node (first/second to insert/delete) / local (last to query)
+        Log.e("SKIP LOST PORT", "BEFORE SKIP MSG: " + msg.toString());
+        switch (msg.getMsgType()) {
+            case INSERT:
+                if (Dynamo.isLastNode(lostId)) {
+                    msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
+                    GV.notifySuccMsgL.add(msg);
+                    // DO NOT SEND MSG
+                } else {
+                    msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
+                    msg.setSndPort(GV.MY_PORT);
+                    GV.msgSendQ.offer(msg);
+                    // GO ON SEND MSG
+                }
+                break;
+
+            case DELETE:
+                if (Dynamo.isLastNode(lostId)) {
+                    msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
+                    GV.notifySuccMsgL.add(msg);
+                    // DO NOT SEND MSG
+                } else {
+                    msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
+                    msg.setSndPort(GV.MY_PORT);
+                    GV.msgSendQ.offer(msg);
+                    // GO ON SEND MSG
+                }
+                break;
+
+            case QUERY:
+                if (Dynamo.isFirstNode(lostId)) {
+                    msg.setTgtPort(GV.SUCC_PORT);
+                } else {
+                    msg.setTgtPort(Dynamo.getPredPortOfPort(GV.lostPort));
+                }
+                msg.setSndPort(GV.MY_PORT);
+                GV.msgSendQ.offer(msg);
+                break;
+
+            default:
+                break;
+        }
+        Log.e("SKIP LOST PORT", "AFTER SKIP MSG: " + msg.toString());
+    }
 
     private void normalSerive(NMessage msg) {
         Log.d("HANDLE RECV MSG", "" + msg.toString());
@@ -159,10 +201,12 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 break;
 
             case UPDATE_INSERT:
+                Log.d("UPDATE_INSERT", msg.toString());
                 this.updateInsert(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
                 break;
 
             case UPDATE_DELETE:
+                Log.d("UPDATE_DELETE", msg.toString());
                 qCR.delete(GV.dbUri, msg.getMsgKey(), new String[] {cmdPort, "notAllowToSend"});
                 break;
 
