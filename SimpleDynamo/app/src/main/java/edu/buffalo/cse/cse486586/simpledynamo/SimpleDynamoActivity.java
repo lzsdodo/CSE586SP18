@@ -97,9 +97,11 @@ public class SimpleDynamoActivity extends Activity {
 	}
 
     private void notifyRestart(ArrayList<String> ports) {
-        for (String port: ports) {
-            GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
-                    GV.MY_PORT, port, "_!!!_"));
+	    for (int i=0; i<2; i++){
+            for (String port: ports) {
+                GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
+                        GV.MY_PORT, port, "_!!!_"));
+            }
         }
     }
 
@@ -162,7 +164,7 @@ public class SimpleDynamoActivity extends Activity {
             switch (msg.what) {
                 case UI:
                     uiCounter++;
-                    if (uiCounter > 20) {
+                    if (uiCounter > 15) {
                         uiCounter = 0;
                         mTextView.setText("CLEAR UI...\n");
                     }

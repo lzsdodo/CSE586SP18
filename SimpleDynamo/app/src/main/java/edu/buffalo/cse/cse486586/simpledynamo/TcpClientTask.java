@@ -17,7 +17,6 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 
-
 public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
     static final String TAG = "CLIENT";
@@ -26,28 +25,23 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
     private OutputStream out;
     private InputStream in;
 
-    private boolean skipMsg = false;
-
     @Override
     protected Void doInBackground (Void... voids) {
 
         Log.v(TAG, "Start TcpClientTask.");
 
         while (true) {
-
             // 发送心跳信号
             if (!GV.signalSendQ.isEmpty()) {
                 NMessage recvMsg = GV.signalSendQ.poll();
-                // type = signal, cmdPort = myPort,
-                // tgtPort = sndPort, key = mid, val = (*.*)
                 String tgtPort = recvMsg.getSndPort();
                 NMessage singalMsg = new NMessage(NMessage.TYPE.SIGNAL,
-                        GV.MY_PORT, tgtPort, recvMsg.getMsgID(), "(*.*)");
+                        GV.MY_PORT, tgtPort, recvMsg.getMsgID());
                 this.sendMsg(singalMsg);
             }
 
             // 更新队列
-            while (!GV.msgUpdateSendQ.isEmpty()) {
+            if (!GV.msgUpdateSendQ.isEmpty()) {
                 NMessage updateMsg = GV.msgUpdateSendQ.poll();
                 Log.e("SEND UPDATE MSG", updateMsg.toString());
                 this.sendMsg(updateMsg);
@@ -56,10 +50,14 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
             // 常规信号
             if (!GV.msgSendQ.isEmpty()) {
                 NMessage msg = GV.msgSendQ.poll();
-                if (!this.skipMsg) {this.sendMsg(msg);}
-                this.skipMsg = false;
+                this.sendMsg(msg);
+                this.recordWaitMsg(msg); // Send msg and record according to type
             }
 
+            if (!GV.resendQueue.isEmpty()) {
+                NMessage msg = GV.resendQueue.poll();
+                this.sendMsg(msg);
+            }
         }
     }
 
@@ -72,6 +70,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
                     GV.waitMsgIdSet.add(msgId);
                     GV.waitMsgIdQueue.offer(msgId);
                     GV.waitMsgMap.put(msgId, msg);
+                    GV.waitTimeMap.put(msgId, (int) System.currentTimeMillis());
                     Log.d("RECORD SIGNAL", msg.toString());
                 }
                 break;
@@ -88,18 +87,14 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         Integer remotePort = Integer.parseInt(tgtPort) * 2;
         Log.v("HANDLE SEND MSG", "" + msgToSend);
 
-        // Send msg and record according to type
-        this.recordWaitMsg(msg);
-
         Socket socket = new Socket();
         try {
-            socket.setTrafficClass(0x04 | 0x10);
             socket.connect(new InetSocketAddress(REMOTE_ADDR, remotePort));
 
             if (socket.isConnected()) {
                 Log.v(TAG, "CONN SERVER: " + socket.getRemoteSocketAddress());
+                socket.setTrafficClass(0x04 | 0x10);
                 socket.setSendBufferSize(8192);
-                socket.setSoTimeout(200);
 
                 this.in = socket.getInputStream();
                 this.out = socket.getOutputStream();

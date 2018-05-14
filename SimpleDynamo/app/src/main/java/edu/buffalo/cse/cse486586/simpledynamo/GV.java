@@ -50,16 +50,16 @@ public class GV {
     // Signal To Send
     static Queue<NMessage> signalSendQ = new LinkedList<NMessage>();
 
-
     // Msg that wait signal to confirm
     static Set<String> waitMsgIdSet = new HashSet<String>();
     static Queue<String> waitMsgIdQueue = new LinkedList<String>();
     static HashMap<String, NMessage> waitMsgMap = new HashMap<String, NMessage>();
+    static HashMap<String, Integer> waitTimeMap = new HashMap<String, Integer>();
 
+    static Queue<NMessage> resendQueue = new LinkedList<NMessage>();
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
     static boolean deleteTable = false;
-
 
 }
 

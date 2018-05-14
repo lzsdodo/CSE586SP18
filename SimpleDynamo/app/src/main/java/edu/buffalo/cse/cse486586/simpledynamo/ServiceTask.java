@@ -3,10 +3,8 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.os.AsyncTask;
-import android.os.Message;
 import android.util.Log;
 
-import java.util.ArrayList;
 import java.util.Queue;
 
 
@@ -16,7 +14,6 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
     private ContentResolver qCR;
     private long lastCheckTime;
-    private long lastDetectTime;
 
     @Override
     protected Void doInBackground (ContentResolver... cr) {
@@ -24,13 +21,12 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
         this.qCR = cr[0];
         this.lastCheckTime = System.currentTimeMillis();
-        this.lastDetectTime = this.lastCheckTime;
 
         while (true) {
             try {
 
                 // TODO Update Service
-                while (!GV.msgUpdateRecvQ.isEmpty()) {
+                if (!GV.msgUpdateRecvQ.isEmpty()) {
                     NMessage msg = GV.msgUpdateRecvQ.poll();
                     this.updateSerive(msg);
                 }
@@ -43,14 +39,9 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
                 // TODO Signal Service
                 // Check latest msg that wait to confirm
-                if (System.currentTimeMillis() - this.lastCheckTime > 500) {
+                if (System.currentTimeMillis() - this.lastCheckTime > 200) {
                     this.signalService();
                     this.lastCheckTime = System.currentTimeMillis();
-                }
-
-                if (System.currentTimeMillis() - this.lastDetectTime > 1000) {
-                    this.detectAlives();
-                    this.lastDetectTime = System.currentTimeMillis();
                 }
 
             } catch (Exception e) {
@@ -59,12 +50,12 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         }
     }
 
-
     private void storeLostMsg(NMessage msg) {
-        if (msg.getMsgType().equals(NMessage.TYPE.INSERT)) {
-            msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-            Queue<NMessage> portQ = GV.notifyPortQueueM.get(msg.getTgtPort());
-            portQ.offer(msg);
+        NMessage nMsg = msg.copy();
+        if (nMsg.getMsgType().equals(NMessage.TYPE.INSERT)) {
+            nMsg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
+            Queue<NMessage> portQ = GV.notifyPortQueueM.get(nMsg.getTgtPort());
+            portQ.offer(nMsg);
         }
     }
 
@@ -72,7 +63,6 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         // 1. Set lost
         String lostPort = msg.getTgtPort();
         Log.e("LOST PORT", "LOST PORT: " + lostPort);
-        this.refreshUI("===== =====\nLOST PORT: " + lostPort + "\n===== =====");
 
         String kid = msg.getMsgKey();
         String firstPort = Dynamo.getFirstPort(kid);
@@ -89,7 +79,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                     GV.msgSendQ.offer(msg);
                     // GO ON SEND MSG
                 }
-                this.sendLostMsg(msg, lostPort, lastPort);
+                //this.sendLostMsg(msg, lostPort);
                 break;
 
             case QUERY:
@@ -108,42 +98,46 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         Log.e("SKIP LOST PORT", "AFTER SKIP MSG: " + msg.toString());
     }
 
-    private void sendLostMsg(NMessage msg, String lostPort, String lastPort) {
+    private void sendLostMsg(NMessage msg, String lostPort) {
+
         // send to second port
-        if (lostPort.equals(GV.SUCC_PORT)) {
+        if (!GV.MY_PORT.equals(Dynamo.getPredPortOfPort(lostPort))) {
             NMessage nMsg = msg.copy();
             nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
-            nMsg.setTgtPort(GV.PRED_PORT);
             nMsg.setCmdPort(lostPort);
             nMsg.setSndPort(GV.MY_PORT);
+            nMsg.setTgtPort(Dynamo.getPredPortOfPort(lostPort));
             GV.msgSendQ.offer(nMsg);
-
         } else {
             NMessage nMsg = msg.copy();
             nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
-            nMsg.setTgtPort(GV.SUCC_PORT);
             nMsg.setCmdPort(lostPort);
             nMsg.setSndPort(GV.MY_PORT);
+            nMsg.setTgtPort(GV.PRED_PORT);
             GV.msgSendQ.offer(nMsg);
         }
-    }
 
-    private void detectAlives() {
-        ArrayList<String> ports = Dynamo.PORTS;
-        ports.remove(GV.MY_PORT);
-        for (String port: ports) {
-            Queue<NMessage> portQ = GV.notifyPortQueueM.get(port);
-            if (!portQ.isEmpty()) {
-                GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.IS_ALIVE,
-                        GV.MY_PORT, port, "___"));
-            }
+        if (!GV.MY_PORT.equals(Dynamo.getSuccPortOfPort(lostPort))) {
+            NMessage nMsg = msg.copy();
+            nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
+            nMsg.setCmdPort(lostPort);
+            nMsg.setSndPort(GV.MY_PORT);
+            nMsg.setTgtPort(Dynamo.getSuccPortOfPort(lostPort));
+            GV.msgSendQ.offer(nMsg);
+        } else {
+            NMessage nMsg = msg.copy();
+            nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
+            nMsg.setCmdPort(lostPort);
+            nMsg.setSndPort(GV.MY_PORT);
+            nMsg.setTgtPort(GV.SUCC_PORT);
+            GV.msgSendQ.offer(nMsg);
         }
-    }
 
+    }
 
     private void signalService() {
         if (!(GV.waitMsgIdQueue.isEmpty())) {
-            String msgId = GV.waitMsgIdQueue.peek();
+            String msgId = GV.waitMsgIdQueue.peek().trim();
 
             if (!GV.waitMsgIdSet.contains(msgId)) {
                 // Not contain this wait msg anymore
@@ -152,16 +146,23 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
             } else {
                 // TODO Handle LOST MSG
-                NMessage msg = GV.waitMsgMap.get(msgId);
-                // Handle: Send to next and
-                this.handleLostMsg(msg);
-                // Store
-                this.storeLostMsg(msg);
-                // Delete
-                GV.waitMsgIdSet.remove(msgId);
-                GV.waitMsgMap.remove(msgId);
-                GV.waitMsgIdQueue.poll();
+                int lastTime = GV.waitTimeMap.get(msgId);
+                int deltaTime = (int) System.currentTimeMillis() - lastTime;
+                if (deltaTime > 800) {
+                    NMessage msg = GV.waitMsgMap.get(msgId);
+                    Log.e("SIGNAL TIMEOUT", lastTime + " (delta) " + deltaTime + " for msg: " + msg.toString());
 
+                    GV.resendQueue.offer(msg);
+                    // Store
+                    this.storeLostMsg(msg);
+                    // Handle: Send to next and
+                    this.handleLostMsg(msg);
+                    // Delete
+                    GV.waitMsgIdSet.remove(msgId);
+                    GV.waitMsgMap.remove(msgId);
+                    GV.waitMsgIdQueue.poll();
+                    //this.detectAlives();
+                }
             }
         }
     }
@@ -249,10 +250,10 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
             case UPDATE_COMPLETED:
                 if (cmdPort.equals(GV.PRED_PORT)) {
-                    this.refreshUI("UPDATE COMPLETED PRED " + GV.PRED_PORT);
+                    Log.e(TAG, "PRED\nUPDATE_COMPLETED\n UPDATE_COMPLETED" );
                 }
                 if (cmdPort.equals(GV.SUCC_PORT)) {
-                    this.refreshUI("UPDATE COMPLETED SUCC " + GV.SUCC_PORT);
+                    Log.e(TAG, "SUCC\nUPDATE_COMPLETED\n UPDATE_COMPLETED" );
                 }
                 break;
 
@@ -265,12 +266,11 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
     // TEST
     private void prepareUpdate(String sndPort) {
         Queue<NMessage> portQ = GV.notifyPortQueueM.get(sndPort);
-        this.refreshUI("RECOVERING PORT: " + sndPort + " with size " + portQ.size());
+        Log.e("PREPARE UPDATE", "RECOVERING PORT: " + sndPort + " with size " + portQ.size());
 
         while (!portQ.isEmpty()) {GV.msgUpdateSendQ.offer(portQ.poll());}
         GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
                 GV.MY_PORT, sndPort, "FROM "+GV.MY_PORT));
-        this.refreshUI("PREPARE UPDATE SEND QUEUE SIZE: " + GV.msgUpdateSendQ.size());
     }
 
     private void normalInsert(String key, String value, String cmdPort) {
@@ -290,13 +290,6 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         cv.put("value", value);
         qCR.insert(GV.dbUri, cv);
         cv.clear();
-    }
-
-    private void refreshUI(String str) {
-        Message uiMsg = new Message();
-        uiMsg.what = SimpleDynamoActivity.UI;
-        uiMsg.obj = str;
-        SimpleDynamoActivity.uiHandler.sendMessage(uiMsg);
     }
 
 }
