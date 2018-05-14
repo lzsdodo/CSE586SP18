@@ -26,8 +26,6 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
     private OutputStream out;
     private InputStream in;
 
-    private boolean skipMsg = false;
-
     @Override
     protected Void doInBackground (Void... voids) {
 
@@ -47,7 +45,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
             }
 
             // 更新队列
-            while (!GV.msgUpdateSendQ.isEmpty()) {
+            if (!GV.msgUpdateSendQ.isEmpty()) {
                 NMessage updateMsg = GV.msgUpdateSendQ.poll();
                 Log.e("SEND UPDATE MSG", updateMsg.toString());
                 this.sendMsg(updateMsg);
@@ -56,76 +54,8 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
             // 常规信号
             if (!GV.msgSendQ.isEmpty()) {
                 NMessage msg = GV.msgSendQ.poll();
-//                if (GV.lostPort!=null) {this.skipLostPort(msg);}
-                if (!this.skipMsg) {this.sendMsg(msg);}
-                this.skipMsg = false;
+                this.sendMsg(msg);
             }
-
-        }
-    }
-
-
-//    private void skipLostPort(NMessage msg) {
-//        if (msg.getTgtPort().equals(GV.lostPort)) {
-//
-//            String lostId = Dynamo.genHash(GV.lostPort);
-//            switch (msg.getMsgType()) {
-//                case INSERT:
-//                    if (Dynamo.isLastNode(lostId)) {
-//                        msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-//                        GV.notifySuccMsgL.add(msg);
-//                        this.skipMsg = true;
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-//                        msg.setSndPort(GV.MY_PORT);
-//                    }
-//                    break;
-//
-//                case DELETE:
-//                    if (Dynamo.isLastNode(lostId)) {
-//                        msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
-//                        GV.notifySuccMsgL.add(msg);
-//                        this.skipMsg = true;
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
-//                        msg.setSndPort(GV.MY_PORT);
-//                    }
-//                    break;
-//
-//                case QUERY:
-//                    if (Dynamo.isFirstNode(lostId)) {
-//                        msg.setTgtPort(GV.MY_PORT);
-//                    } else {
-//                        msg.setTgtPort(Dynamo.getPredPortOfPort(GV.lostPort));
-//                    }
-//                    msg.setSndPort(GV.MY_PORT);
-//                    break;
-//
-//                default:
-//                    break;
-//            }
-//        }
-//    }
-
-
-    private void recordWaitMsg(NMessage msg) {
-        switch (msg.getMsgType()) {
-            case QUERY:
-            case INSERT:
-            case DELETE:
-                if (!msg.getTgtPort().equals(GV.MY_PORT)) {
-                    String msgId = msg.getMsgID();
-                    long now = System.currentTimeMillis();
-                    GV.waitMsgQueue.offer(msg);
-                    GV.waitMsgIdSet.add(msgId);
-                    GV.waitTimeMap.put(msgId, (int) now);
-                    Log.d("RECORD SIGNAL", msg.toString());
-                }
-                break;
-
-            default:
-                Log.v("RECORD SIGNAL", "OTHER TYPE, NO NEED TO RECORD");
-                break;
         }
     }
 
@@ -188,11 +118,30 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
+    private void recordWaitMsg(NMessage msg) {
+        switch (msg.getMsgType()) {
+            case QUERY:
+            case INSERT:
+            case DELETE:
+                if (!msg.getTgtPort().equals(GV.MY_PORT)) {
+                    String msgId = msg.getMsgID();
+                    long now = System.currentTimeMillis();
+                    GV.waitMsgQueue.offer(msg);
+                    GV.waitMsgIdSet.add(msgId);
+                    GV.waitTimeMap.put(msgId, (int) now);
+                    Log.d("RECORD SIGNAL", msg.toString());
+                }
+                break;
+
+            default:
+                Log.v("RECORD SIGNAL", "OTHER TYPE, NO NEED TO RECORD");
+                break;
+        }
+    }
+
     @Override
     protected void onPostExecute(Void result) {
         Log.e("LOST CLIENT", "CLIENT TASK SHOULD NOT BREAK.");
     }
-
-
 
 }

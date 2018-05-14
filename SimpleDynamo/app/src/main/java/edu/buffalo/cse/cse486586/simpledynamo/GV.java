@@ -40,8 +40,8 @@ public class GV {
     static boolean needWaiting;
 
     // Stored info for failed node
-    static ArrayList<NMessage> notifyPredMsgL = new ArrayList<NMessage>(0);
-    static ArrayList<NMessage> notifySuccMsgL = new ArrayList<NMessage>(0);
+    static Queue<NMessage> notifyPredMsgL = new LinkedList<NMessage>();
+    static Queue<NMessage> notifySuccMsgL = new LinkedList<NMessage>();
 
     static Queue<NMessage> msgUpdateSendQ = new LinkedList<NMessage>();
     static Queue<NMessage> msgUpdateRecvQ = new LinkedList<NMessage>();
@@ -54,6 +54,9 @@ public class GV {
     static HashMap<String, Integer> waitTimeMap = new HashMap<String, Integer>();
 
     static String lostPort = null;
+
+    static String lastRecoverPort = "";
+    static long lastRecover = 0;
 
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE

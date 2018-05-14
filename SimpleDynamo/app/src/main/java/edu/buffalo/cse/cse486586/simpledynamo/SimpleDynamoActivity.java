@@ -73,11 +73,10 @@ public class SimpleDynamoActivity extends Activity {
 	}
 
 	private void updateLostData() {
-        // Send msg to neighbour
-        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
-                this.dynamo.getPort(), this.dynamo.getSuccPort(), "$"));
-        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
-                this.dynamo.getPort(), this.dynamo.getPredPort(), "$"));
+        for (String port: Dynamo.PORTS) {
+            GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
+                    GV.MY_PORT, port, "$"));
+        }
     }
 
     private void test() {

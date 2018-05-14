@@ -56,6 +56,7 @@ public class Dynamo {
         String TAG = "DYNAMO DETECT SKIP";
         String kid = Dynamo.genHash(key);
         ArrayList<String> perferIdList = Dynamo.getPerferIdList(kid);
+
         int sndIndex = perferIdList.indexOf(Dynamo.genHash(sndPort));
         int tgtIndex = perferIdList.indexOf(Dynamo.genHash(tgtPort));
         Log.d(TAG, "SEND PORT=" + sndPort + "; TGT PORT=" + tgtPort + "; " +

@@ -31,7 +31,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
     // TODO
     private void handleTcpServerMsg(NMessage msgRecv) {
-        this.detectRecvLostMsg(msgRecv.getSndPort());
 
         switch (msgRecv.getMsgType()) {
             case SIGNAL:
@@ -68,16 +67,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         }
 
         this.refreshUI(msgRecv.toString());
-    }
-
-    private void detectRecvLostMsg(String sndPort) {
-        if (GV.lostPort!=null) {
-            if (sndPort.equals(GV.lostPort)) {
-                // Send A SIGNAL TO LOST PORT
-                GV.msgUpdateRecvQ.offer(new NMessage(NMessage.TYPE.IS_ALIVE,
-                        GV.MY_PORT, GV.lostPort, "___"));
-            }
-        }
     }
 
     private void detectSkipMsg(NMessage msg) {
