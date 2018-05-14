@@ -17,6 +17,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.Queue;
 
 public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
@@ -35,6 +36,10 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         switch (msgRecv.getMsgType()) {
             case SIGNAL:
                 this.tcpHandleRecvSignal(msgRecv.getMsgKey());
+                break;
+
+            case LOST_INSERT:
+                this.saveLostMsg(msgRecv);
                 break;
 
             case RESTART:
@@ -69,6 +74,16 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         this.refreshUI(msgRecv.toString());
     }
 
+    private void saveLostMsg(NMessage msg) {
+        msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
+        String tgtPort = msg.getCmdPort();
+        msg.setTgtPort(tgtPort);
+        msg.setSndPort(GV.MY_PORT);
+
+        Queue<NMessage> portQ = GV.notifyPortQueueM.get(tgtPort);
+        portQ.offer(msg);
+    }
+
     private void detectSkipMsg(NMessage msg) {
         // skip [0]/[1], pred post
         switch (msg.getMsgType()) {
@@ -78,7 +93,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                     msg.setSndPort(GV.MY_PORT);
                     msg.setTgtPort(GV.PRED_PORT);
                     GV.notifyPredMsgQ.offer(msg);
-                    GV.lostPort = GV.PRED_PORT;
                     Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
                 }
                 break;
@@ -88,7 +102,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                     msg.setSndPort(GV.MY_PORT);
                     msg.setTgtPort(GV.PRED_PORT);
                     GV.notifySuccMsgQ.offer(msg);
-                    GV.lostPort = GV.PRED_PORT;
                     Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
                 }
                 break;
@@ -99,10 +112,10 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
     private void tcpHandleRecvSignal(String msgId) {
         if (GV.waitMsgIdSet.contains(msgId)) {
-            int delta = (int) System.currentTimeMillis() - GV.waitTimeMap.get(msgId);
-            Log.d("HANDLE TCP SIGNAL", msgId + ": " + delta + " (delta)");
             GV.waitMsgIdSet.remove(msgId);
-            GV.waitTimeMap.remove(msgId);
+            GV.waitMsgMap.remove(msgId);
+        } else {
+            Log.e("RECV SIGNAL", "CHECK IF I ALREADY DELETED");
         }
     }
 

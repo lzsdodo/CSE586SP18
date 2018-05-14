@@ -40,6 +40,7 @@ public class GV {
     static boolean needWaiting;
 
     // Stored info for failed node
+    static HashMap<String, Queue<NMessage>> notifyPortQueueM = new HashMap<String, Queue<NMessage>>();
     static Queue<NMessage> notifyPredMsgQ = new LinkedList<NMessage>();
     static Queue<NMessage> notifySuccMsgQ = new LinkedList<NMessage>();
 
@@ -48,19 +49,16 @@ public class GV {
 
     // Signal To Send
     static Queue<NMessage> signalSendQ = new LinkedList<NMessage>();
+
+
     // Msg that wait signal to confirm
-    static Queue<NMessage> waitMsgQueue = new LinkedList<NMessage>();
     static Set<String> waitMsgIdSet = new HashSet<String>();
-    static HashMap<String, Integer> waitTimeMap = new HashMap<String, Integer>();
-
-    static String lostPort = null;
-
-    static HashMap<String, Queue<NMessage>> storedMap = new HashMap<String, Queue<NMessage>>();
-    static Queue<NMessage> msgResendQ = new LinkedList<NMessage>();
+    static Queue<String> waitMsgIdQueue = new LinkedList<String>();
+    static HashMap<String, NMessage> waitMsgMap = new HashMap<String, NMessage>();
 
 
     // TODO HANDLE FAILUE: CHANGE TO FALSE
-    static boolean deleteTable = true;
+    static boolean deleteTable = false;
 
 
 }

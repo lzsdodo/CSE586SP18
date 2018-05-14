@@ -87,9 +87,8 @@ public class Dynamo {
         }
 
         if ((sndIndex!=0 && tgtIndex == 1) || (sndIndex==0 && tgtIndex==2)) {
-            // skip [0]/[1] node
-            GV.lostPort = GV.PRED_PORT;
-            Log.e(TAG,"Lost Port which index is: " + (tgtIndex-1) + " => " + GV.lostPort);
+            // skip [0]/[1] node;
+            Log.e(TAG,"Lost Port which index is: " + (tgtIndex-1) + " => " + GV.PRED_PORT);
             return true;
         }
 

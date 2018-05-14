@@ -73,9 +73,23 @@ public class SimpleDynamoActivity extends Activity {
         Log.d(TAG, ports.toString());
 
         for (String port: ports) {
-            Queue<NMessage> portQ = new LinkedList<NMessage>();
-            GV.storedMap.put(port, portQ);
+            if (port.equals(GV.SUCC_PORT)) {
+                GV.notifyPortQueueM.put(port, GV.notifySuccMsgQ);
+            } else if (port.equals(GV.PRED_PORT)) {
+                GV.notifyPortQueueM.put(port, GV.notifyPredMsgQ);
+            } else {
+                Queue<NMessage> portQ = new LinkedList<NMessage>();
+                GV.notifyPortQueueM.put(port, portQ);
+            }
         }
+
+//        for (String port: ports) {
+//            Queue<NMessage> portQ = GV.notifyPortQueueM.get(port);
+//            portQ.offer(new NMessage(NMessage.TYPE.RESTART, "5554", "5556", "!!!"));
+//            Log.e(TAG, port + ": " + portQ.hashCode() + "");
+//        }
+//        Log.e(TAG,GV.PRED_PORT + ": " + GV.notifyPredMsgQ.poll().toString());
+//        Log.e(TAG, GV.SUCC_PORT + ": " + GV.notifySuccMsgQ.poll().toString());
 
         this.notifyRestart(ports);
 
@@ -85,17 +99,8 @@ public class SimpleDynamoActivity extends Activity {
     private void notifyRestart(ArrayList<String> ports) {
         for (String port: ports) {
             GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
-                    GV.MY_PORT, port, "$"));
+                    GV.MY_PORT, port, "_!!!_"));
         }
-    }
-
-
-	private void updateLostData() {
-        // Send msg to neighbour
-        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
-                this.dynamo.getPort(), this.dynamo.getSuccPort(), "$"));
-        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
-                this.dynamo.getPort(), this.dynamo.getPredPort(), "$"));
     }
 
     private void test() {
