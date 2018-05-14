@@ -29,6 +29,54 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
     private InputStream in;
     private BufferedReader br;
 
+    // TODO
+    private void handleTcpServerMsg(NMessage msgRecv) {
+
+        switch (msgRecv.getMsgType()) {
+            case SIGNAL:
+                this.tcpHandleRecvSignal(msgRecv.getMsgKey());
+                break;
+
+            case RECOVERY:
+            case UPDATE_INSERT:
+            case UPDATE_DELETE:
+            case UPDATE_COMPLETED:
+                GV.msgUpdateRecvQ.offer(msgRecv);
+                break;
+
+            case QUERY:
+            case INSERT:
+            case DELETE:
+                GV.signalSendQ.offer(msgRecv);
+                GV.msgRecvQ.offer(msgRecv);
+                break;
+
+            case RESULT_ONE:
+            case RESULT_ALL:
+            case RESULT_ALL_COMLETED:
+                GV.msgRecvQ.offer(msgRecv);
+                break;
+
+            default:
+                Log.e(TAG, "handleMsg -> SWITCH DEFAULT CASE ERROR: " + msgRecv.toString());
+                break;
+        }
+
+        this.refreshUI(msgRecv.toString());
+    }
+
+
+    private void tcpHandleRecvSignal(String msgId) {
+        if (GV.waitMsgIdSet.contains(msgId)) {
+            int delta = (int) System.currentTimeMillis() - GV.waitTimeMap.get(msgId);
+            Log.e("HANDLE TCP SIGNAL", msgId + ": " + delta + " (delta)");
+            GV.waitMsgIdSet.remove(msgId);
+            GV.waitTimeMap.remove(msgId);
+        }
+    }
+
+
+    // DONE
     @Override
     protected Void doInBackground (Void... voids) {
         Log.v(TAG, "Start TcpServerTask.");
@@ -50,7 +98,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
                     String msgRecvStr = this.br.readLine();
                     Log.v("TCP RECV MSG", msgRecvStr);
-                    this.handleMsg(NMessage.parseMsg(msgRecvStr));
+                    this.handleTcpServerMsg(NMessage.parseMsg(msgRecvStr));
 
                     this.br.close();
                     this.in.close();
@@ -81,72 +129,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
-
-    private void handleMsg(NMessage msgRecv) {
-
-        switch (msgRecv.getMsgType()) {
-            case SIGNAL:
-                this.handleSingal(msgRecv);
-                break;
-
-            case LOST:
-            case RECOVERY:
-            case UPDATE_COMPLETED:
-            case UPDATE_INSERT:
-            case UPDATE_DELETE:
-                GV.msgUpdateRecvQ.offer(msgRecv);
-                break;
-
-            case QUERY:
-            case INSERT:
-            case DELETE:
-                GV.signalSendQueue.offer(msgRecv);
-                GV.msgRecvQ.offer(msgRecv);
-                break;
-
-            case RESULT_ONE:
-            case RESULT_ALL:
-            case RESULT_ALL_COMLETED:
-//                if (GV.lostPort!=null) {
-//                    Dynamo dynamo = Dynamo.getInstance();
-//                    if (dynamo.detectFail(msgRecv.getMsgKey(),
-//                            msgRecv.getSndPort(), msgRecv.getTgtPort())) {
-//                        // Skip [0]/[1] node, store in notifyPredNode
-//                        Log.d(TAG, "DETECT FAIL " + msgRecv.getMsgType().name() +
-//                                " : \nSEND PORT=" + msgRecv.getSndPort() +
-//                                "; TGT PORT=" + msgRecv.getTgtPort() +
-//                                "; PERFER PORT LIST=" + dynamo.getPerferPortList(
-//                                        dynamo.getPerferIdList(dynamo.genHash(msgRecv.getMsgKey()))));
-//                        msgRecv.setTgtPort(dynamo.getPredPort());
-//                        GV.notifyPredNode.add(msgRecv);
-//                    }
-//                }
-                GV.msgRecvQ.offer(msgRecv);
-                break;
-
-            default:
-                Log.e(TAG, "handleMsg -> SWITCH DEFAULT CASE ERROR: " + msgRecv.toString());
-                break;
-        }
-
-        this.refreshUI(msgRecv.toString());
-    }
-
-
-    private void handleSingal(NMessage msg) {
-        String mid = msg.getMsgKey();
-        NMessage oldMsg = GV.signalMsgMap.get(mid);
-        int lastTime = GV.signalTimeMap.get(mid);
-        int now = (int) System.currentTimeMillis();
-        int deltaTime = now - lastTime;
-        Log.d("HANDLE SINGAL", lastTime + " - " + now + " = " + deltaTime +
-                " (delta) for msg: " + oldMsg.toString());
-        GV.signalMsgMap.remove(mid);
-        GV.signalTimeMap.remove(mid);
-    }
-
-
-    // TEST
     @Override
     protected void onPostExecute(Void result) {
         Log.e("LOST SERVER", "SERVER TASK SHOULD NOT BREAK.");

@@ -8,11 +8,10 @@ public class NMessage {
 
     enum TYPE {
         NONE,
-        INSERT, DELETE, QUERY,
+        INSERT, DELETE, QUERY, SIGNAL,
         RESULT_ONE, RESULT_ALL, RESULT_ALL_COMLETED,
-        LOST, RECOVERY,
+        RECOVERY, ALIVE,
         UPDATE_INSERT, UPDATE_DELETE, UPDATE_COMPLETED,
-        SIGNAL,
     }
 
     private String msgID = null;

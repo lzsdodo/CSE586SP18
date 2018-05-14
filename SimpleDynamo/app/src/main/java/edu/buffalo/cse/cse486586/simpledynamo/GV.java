@@ -4,8 +4,10 @@ import android.net.Uri;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -29,9 +31,12 @@ public class GV {
     static Queue<NMessage> msgUpdateSendQ = new LinkedList<NMessage>();
     static Queue<NMessage> msgUpdateRecvQ = new LinkedList<NMessage>();
 
-    static Queue<NMessage> signalSendQueue = new LinkedList<NMessage>();
-    static HashMap<String, NMessage> signalMsgMap = new HashMap<String, NMessage>();
-    static HashMap<String, Integer> signalTimeMap = new HashMap<String, Integer>();
+    // Signal To Send
+    static Queue<NMessage> signalSendQ = new LinkedList<NMessage>();
+    // Msg that wait signal to confirm
+    static Queue<NMessage> waitMsgQueue = new LinkedList<NMessage>();
+    static Set<String> waitMsgIdSet = new HashSet<String>();
+    static HashMap<String, Integer> waitTimeMap = new HashMap<String, Integer>();
 
     static Lock queryLock = new ReentrantLock();
     static boolean needWaiting;

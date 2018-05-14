@@ -28,7 +28,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
     private OutputStream out;
     private InputStream in;
 
-    private boolean connFlag;
+    private boolean connFlag = false;
     private boolean skipMsg = false;
     private Queue<NMessage> reSendMsgQueue = new LinkedList<NMessage>();
 
@@ -41,8 +41,8 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
         while (true) {
 
-            if (!GV.signalSendQueue.isEmpty()) {
-                NMessage recvMsg = GV.signalSendQueue.poll();
+            if (!GV.signalSendQ.isEmpty()) {
+                NMessage recvMsg = GV.signalSendQ.poll();
                 // type = signal, cmdPort = myPort,
                 // tgtPort = sndPort, key = mid, val = (*.*)
                 String tgtPort = recvMsg.getSndPort();
@@ -65,6 +65,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
             if (!GV.msgSendQ.isEmpty()) {
                 NMessage msg = GV.msgSendQ.poll();
+
                 if (GV.lostPort!=null) {
                     this.skipLostPort(msg);
                 }
@@ -79,22 +80,15 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
     }
 
     private void sendMsg(NMessage msg) {
-        if (!msg.getMsgType().equals(NMessage.TYPE.SIGNAL) &&
-                !msg.getTgtPort().equals(GV.MY_PORT)) {
-            String msgId = msg.getMsgID();
-            long now = System.currentTimeMillis();
-            GV.signalTimeMap.put(msgId, (int) now);
-            GV.signalMsgMap.put(msgId, msg);
-            Log.e(TAG, msgId + ": " + (int) now);
-        }
-
         String msgToSend = msg.toString();
         String tgtPort = msg.getTgtPort();
         Integer remotePort = Integer.parseInt(tgtPort) * 2;
-        Log.e("HANDLE SEND MSG", "" + msgToSend);
+        Log.v("HANDLE SEND MSG", "" + msgToSend);
+
+        // Send msg and record according to type
+        this.recordWaitMsg(msg);
 
         Socket socket = new Socket();
-
         try {
             socket.setTrafficClass(0x04 | 0x10);
             socket.connect(new InetSocketAddress(REMOTE_ADDR, remotePort));
@@ -151,13 +145,29 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
             if (!this.connFlag) {
                 Log.e(TAG, "DISCONN DEVICE: " + tgtPort);
                 this.refreshUI("DISCONN DEVICE: " + tgtPort);
-                this.handleDisconn(tgtPort);
             }
         }
     }
 
-    private void handleDisconn(String tgtPort) {
-        Log.e(TAG, "HANDLE DISCONN: " + tgtPort);
+    private void recordWaitMsg(NMessage msg) {
+        switch (msg.getMsgType()) {
+            case QUERY:
+            case INSERT:
+            case DELETE:
+                if (!msg.getTgtPort().equals(GV.MY_PORT)) {
+                    String msgId = msg.getMsgID();
+                    long now = System.currentTimeMillis();
+                    GV.waitMsgQueue.offer(msg);
+                    GV.waitMsgIdSet.add(msgId);
+                    GV.waitTimeMap.put(msgId, (int) now);
+                    Log.d("RECORD SIGNAL", "createSingal: ");
+                }
+                break;
+
+            default:
+                Log.e("RECORD SIGNAL", "OTHER TYPE, NO NEED TO RECORD " + msg.getMsgType().name());
+                break;
+        }
     }
 
     private void skipLostPort(NMessage msg) {

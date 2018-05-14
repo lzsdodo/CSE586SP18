@@ -12,12 +12,14 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
     static String TAG = "SERVICE";
 
     private ContentResolver qCR;
+    private long lastCheck;
 
     @Override
     protected Void doInBackground (ContentResolver... cr) {
         Log.v(TAG, "Start ServiceTask.");
 
         this.qCR = cr[0];
+        this.lastCheck = System.currentTimeMillis();
 
         while (true) {
             try {
@@ -27,17 +29,15 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                     Log.e("HANDLE UPDATE MSG", msg.toString());
                     String cmdPort = msg.getCmdPort();
                     switch (msg.getMsgType()) {
+                        case ALIVE:
+                            break;
+
                         case RECOVERY:
                             Log.e("RECOVERY", "SEND BACK TO " + msg.getSndPort());
                             if ((cmdPort.equals(GV.lostPort)) || GV.lostPort == null) {
                                 this.prepareUpdate(msg.getSndPort());
                                 GV.lostPort = null;
                             }
-                            break;
-
-                        case LOST:
-                            Log.e("LOST", "LOST PORT " +  cmdPort);
-                            GV.lostPort = cmdPort;
                             break;
 
                         case UPDATE_INSERT:
@@ -64,7 +64,39 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                     }
                 }
 
-                    // Handle Receive Message
+                // Check latest msg that wait to confirm
+
+                if (System.currentTimeMillis() - lastCheck > 200) {
+                    this.lastCheck = System.currentTimeMillis();
+
+                    if (!(GV.waitMsgQueue.isEmpty())) {
+                        NMessage waitMsg = GV.waitMsgQueue.peek();
+                        String waitMsgId = waitMsg.getMsgID();
+
+                        if (GV.waitMsgIdSet.contains(waitMsgId)) {
+                            int lastTime = GV.waitTimeMap.get(waitMsgId);
+                            int nowTime = (int) System.currentTimeMillis();
+                            int deltaTime = nowTime - lastTime;
+
+                            if (deltaTime > 1000) {
+                                // TODO Handle
+                                this.handleWaitMsg(waitMsg);
+                                // Remove
+                                 GV.waitMsgQueue.poll();
+                                Log.e("SINGAL TIMEOUT", lastTime + " - " + nowTime + " = " + deltaTime +
+                                        " (delta) for msg: " + waitMsg.toString());
+                            } else {
+                                Log.v("SERVICE SIGNAL", "CONTINUE WAIT: delta time = " + deltaTime);
+                            }
+                        } else {
+                            // Not contain this wait msg anymore
+                            GV.waitMsgQueue.poll();
+                            Log.v("SERVICE SIGNAL", "NOT EXIST");
+                        }
+                    }
+                }
+
+                // Handle Receive Message
                 if (!(GV.msgRecvQ.isEmpty())) {
                     NMessage msg = GV.msgRecvQ.poll(); // with Remove
                     Log.d("HANDLE RECV MSG", "" + msg.toString());
@@ -103,8 +135,6 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                             GV.needWaiting = false;
                             break;
 
-
-
                         default:
                             Log.e("SERVICE HANDLE ERROR", "SHOULD NOT HAPPEN!!!!!!!!!!!!");
                             break;
@@ -117,6 +147,10 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 e.printStackTrace();
             }
         }
+    }
+
+    private void handleWaitMsg(NMessage msg) {
+        Dynamo dynamo = Dynamo.getInstance();
     }
 
 
