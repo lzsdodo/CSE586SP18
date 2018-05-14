@@ -12,7 +12,9 @@ public class NMessage {
         RESULT_ONE, RESULT_ALL,
         RESULT_ALL_FLAG, RESULT_ALL_COMLETED,
         RESTART, RECOVERY, IS_ALIVE,
-        UPDATE_INSERT, UPDATE_DELETE, UPDATE_COMPLETED,
+        LOST_INSERT, UPDATE_INSERT,
+        UPDATE_DELETE, UPDATE_COMPLETED,
+
     }
 
     private String msgID = null;
@@ -67,6 +69,18 @@ public class NMessage {
                 this.msgVal = "..."; break;
         }
         this.msgBody = this.msgKey + "<>" + this.msgVal;
+    }
+
+    public NMessage copy() {
+        NMessage msg = new NMessage();
+        msg.setMsgType(this.msgType);
+        msg.setCmdPort(this.cmdPort);
+        msg.setSndPort(this.sndPort);
+        msg.setTgtPort(this.tgtPort);
+        msg.setMsgBody(this.msgBody);
+        msg.setMsgKey(this.msgKey);
+        msg.setMsgVal(this.msgVal);
+        return msg;
     }
 
     public String getMsgID()    { return this.msgID; }
