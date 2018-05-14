@@ -78,21 +78,28 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
     }
 
     private void handleLostMsg(NMessage msg) {
+        Log.e("LOST PORT", "LOST PORT: " + GV.lostPort);
+        this.refreshUI("===== =====\nLOST PORT: " + GV.lostPort + "\n===== =====");
+
         // 1. Set lost
         GV.lostPort = msg.getTgtPort();
-        String lostId = Dynamo.genHash(GV.lostPort);
+        String tgtPort = msg.getTgtPort();
+
+        String kid = msg.getMsgKey();
+        String firstPort = Dynamo.getFirstPort(kid);
+        String lastPort = Dynamo.getLastPort(kid);
 
         // 2. Store in memory (if last to insert/delete)
         // 3. Send to other node (first/second to insert/delete) / local (last to query)
         Log.e("SKIP LOST PORT", "BEFORE SKIP MSG: " + msg.toString());
         switch (msg.getMsgType()) {
             case INSERT:
-                if (Dynamo.isLastNode(lostId)) {
+                if (tgtPort.equals(lastPort)) {
                     msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-                    GV.notifySuccMsgL.add(msg);
+                    GV.notifySuccMsgQ.offer(msg);
                     // DO NOT SEND MSG
                 } else {
-                    msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
+                    msg.setTgtPort(Dynamo.getSuccPortOfPort(tgtPort));
                     msg.setSndPort(GV.MY_PORT);
                     GV.msgSendQ.offer(msg);
                     // GO ON SEND MSG
@@ -100,9 +107,9 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 break;
 
             case DELETE:
-                if (Dynamo.isLastNode(lostId)) {
+                if (tgtPort.equals(lastPort)) {
                     msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
-                    GV.notifySuccMsgL.add(msg);
+                    GV.notifySuccMsgQ.offer(msg);
                     // DO NOT SEND MSG
                 } else {
                     msg.setTgtPort(Dynamo.getSuccPortOfPort(GV.lostPort));
@@ -113,10 +120,10 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 break;
 
             case QUERY:
-                if (Dynamo.isFirstNode(lostId)) {
-                    msg.setTgtPort(GV.SUCC_PORT);
+                if (tgtPort.equals(firstPort)) {
+                    msg.setTgtPort(lastPort);
                 } else {
-                    msg.setTgtPort(Dynamo.getPredPortOfPort(GV.lostPort));
+                    msg.setTgtPort(Dynamo.getPredPortOfPort(tgtPort));
                 }
                 msg.setSndPort(GV.MY_PORT);
                 GV.msgSendQ.offer(msg);
@@ -229,22 +236,20 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
     private void prepareUpdate(String sndPort) {
         if (sndPort.equals(GV.PRED_PORT)) {
             this.refreshUI("RECOVERING PRED: " + GV.PRED_PORT +
-                    " with size " + GV.notifyPredMsgL.size());
-            for (NMessage msg: GV.notifyPredMsgL) {
-                GV.msgUpdateSendQ.offer(msg);
+                    " with size " + GV.notifyPredMsgQ.size());
+            while (!GV.notifyPredMsgQ.isEmpty()) {
+                GV.msgUpdateSendQ.offer(GV.notifyPredMsgQ.poll());
             }
-            GV.notifyPredMsgL.clear();
             GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
                         GV.MY_PORT, sndPort, "FROM SUCC PORT"));
         }
 
         if (sndPort.equals(GV.SUCC_PORT)) {
             this.refreshUI("RECOVERING SUCC: " + GV.SUCC_PORT +
-                    " with size " + GV.notifySuccMsgL.size());
-            for (NMessage msg: GV.notifySuccMsgL) {
-                GV.msgUpdateSendQ.offer(msg);
+                    " with size " + GV.notifySuccMsgQ.size());
+            while (!GV.notifySuccMsgQ.isEmpty()) {
+                GV.msgUpdateSendQ.offer(GV.notifySuccMsgQ.poll());
             }
-            GV.notifySuccMsgL.clear();
             GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
                     GV.MY_PORT, sndPort, "FROM PRED PORT"));
         }

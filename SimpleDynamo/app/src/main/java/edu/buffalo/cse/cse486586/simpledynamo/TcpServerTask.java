@@ -88,7 +88,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                     msg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
                     msg.setSndPort(GV.MY_PORT);
                     msg.setTgtPort(GV.PRED_PORT);
-                    GV.notifyPredMsgL.add(msg);
+                    GV.notifyPredMsgQ.offer(msg);
                     GV.lostPort = GV.PRED_PORT;
                     Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
                 }
@@ -98,7 +98,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
                     msg.setMsgType(NMessage.TYPE.UPDATE_DELETE);
                     msg.setSndPort(GV.MY_PORT);
                     msg.setTgtPort(GV.PRED_PORT);
-                    GV.notifyPredMsgL.add(msg);
+                    GV.notifySuccMsgQ.offer(msg);
                     GV.lostPort = GV.PRED_PORT;
                     Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
                 }

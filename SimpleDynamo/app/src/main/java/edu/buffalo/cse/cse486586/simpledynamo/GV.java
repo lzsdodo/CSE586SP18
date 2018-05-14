@@ -40,8 +40,8 @@ public class GV {
     static boolean needWaiting;
 
     // Stored info for failed node
-    static ArrayList<NMessage> notifyPredMsgL = new ArrayList<NMessage>(0);
-    static ArrayList<NMessage> notifySuccMsgL = new ArrayList<NMessage>(0);
+    static Queue<NMessage> notifyPredMsgQ = new LinkedList<NMessage>();
+    static Queue<NMessage> notifySuccMsgQ = new LinkedList<NMessage>();
 
     static Queue<NMessage> msgUpdateSendQ = new LinkedList<NMessage>();
     static Queue<NMessage> msgUpdateRecvQ = new LinkedList<NMessage>();
