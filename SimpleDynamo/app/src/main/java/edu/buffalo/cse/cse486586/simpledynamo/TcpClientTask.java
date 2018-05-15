@@ -32,11 +32,11 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
 
         while (true) {
             // 发送心跳信号
-            if (!GV.signalSendQ.isEmpty()) {
-                NMessage recvMsg = GV.signalSendQ.poll();
+            if (!GV.msgSignalSendQ.isEmpty()) {
+                NMessage recvMsg = GV.msgSignalSendQ.poll();
                 String tgtPort = recvMsg.getSndPort();
-                NMessage singalMsg = new NMessage(NMessage.TYPE.SIGNAL,
-                        GV.MY_PORT, tgtPort, recvMsg.getMsgID());
+                NMessage singalMsg = new NMessage(NMessage.TYPE.SIGNAL, tgtPort);
+                singalMsg.setMsgKey(recvMsg.getMsgID());
                 this.sendMsg(singalMsg);
             }
 
@@ -70,7 +70,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
                     GV.waitMsgIdSet.add(msgId);
                     GV.waitMsgIdQueue.offer(msgId);
                     GV.waitMsgMap.put(msgId, msg);
-                    GV.waitTimeMap.put(msgId, (int) System.currentTimeMillis());
+                    GV.waitMsgTimeMap.put(msgId, (int) System.currentTimeMillis());
                     Log.d("RECORD SIGNAL", msg.toString());
                 }
                 break;

@@ -5,11 +5,12 @@ import android.net.Uri;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+// PriorityBlockingQueue <impl Comparable>
 
 public class GV {
 
@@ -22,43 +23,38 @@ public class GV {
     static String MY_PORT = null;
     static String SUCC_ID = null;
     static String SUCC_PORT = null;
-    static String MY_PORT_INFO = null;
-    static int msgCounter = 0;
+    static ArrayList<String> REPLICA_PORTS = new ArrayList<String>();
 
-    static ArrayList<String> nodeIdList = new ArrayList<String>(0);
-    static HashMap<String, String> idPortMap = new HashMap<String, String>(0);
+    static ArrayList<String> NODE_ID_LIST = new ArrayList<String>(0);
+    static HashMap<String, String> ID_PORT_MAP = new HashMap<String, String>(0);
 
     // Basic Queue
-    static Queue<NMessage> msgRecvQ = new LinkedList<NMessage>();
-    static Queue<NMessage> msgSendQ = new LinkedList<NMessage>();
+    static Queue<NMessage> msgRecvQ = new LinkedBlockingQueue<NMessage>();
+    static Queue<NMessage> msgSendQ = new LinkedBlockingQueue<NMessage>();
+
+    static Queue<NMessage> msgUpdateSendQ = new LinkedBlockingQueue<NMessage>();
+    static Queue<NMessage> msgUpdateRecvQ = new LinkedBlockingQueue<NMessage>();
+    static Queue<NMessage> msgSignalSendQ = new LinkedBlockingQueue<NMessage>();
 
     static HashMap<String, String> resultOneMap = new HashMap<String, String>();
     static HashMap<String, String> resultAllMap = new HashMap<String, String>();
     static ArrayList<String> queryAllReturnPort = new ArrayList<String>(0);
-
     static Lock queryLock = new ReentrantLock();
     static boolean needWaiting;
 
     // Stored info for failed node
-    static HashMap<String, Queue<NMessage>> notifyPortQueueM = new HashMap<String, Queue<NMessage>>();
-    static Queue<NMessage> notifyPredMsgQ = new LinkedList<NMessage>();
-    static Queue<NMessage> notifySuccMsgQ = new LinkedList<NMessage>();
+    static HashMap<String, LinkedBlockingQueue<NMessage>> backupMsgQMap =
+            new HashMap<String, LinkedBlockingQueue<NMessage>>();
 
-    static Queue<NMessage> msgUpdateSendQ = new LinkedList<NMessage>();
-    static Queue<NMessage> msgUpdateRecvQ = new LinkedList<NMessage>();
-
-    // Signal To Send
-    static Queue<NMessage> signalSendQ = new LinkedList<NMessage>();
 
     // Msg that wait signal to confirm
+    static Queue<String> waitMsgIdQueue = new LinkedBlockingQueue<String>();
     static Set<String> waitMsgIdSet = new HashSet<String>();
-    static Queue<String> waitMsgIdQueue = new LinkedList<String>();
     static HashMap<String, NMessage> waitMsgMap = new HashMap<String, NMessage>();
-    static HashMap<String, Integer> waitTimeMap = new HashMap<String, Integer>();
+    static HashMap<String, Integer> waitMsgTimeMap = new HashMap<String, Integer>();
 
-    static Queue<NMessage> resendQueue = new LinkedList<NMessage>();
+    static Queue<NMessage> resendQueue = new LinkedBlockingQueue<NMessage>();
 
-    // TODO HANDLE FAILUE: CHANGE TO FALSE
     static boolean deleteTable = false;
 
 }

@@ -19,23 +19,15 @@ public class Dynamo {
 
     private static Dynamo instance;
 
-    private String port;
-    private String id;
-    private String succPort;
-    private String succID;
-    private String predPort;
-    private String predID;
-
     private Dynamo() {
-        this.port = GV.MY_PORT;
-        this.id = genHash(this.port);
-        GV.MY_ID = this.id;
-        initIdPortMap(PORTS);
-        initNodeIDList(PORTS);
-        initNeighbourInfo();
-        Log.e(TAG, "Dynamo Info: \n" + "PRED: " + this.getPredPort() + "::" + this.getPredID() + "\n" +
-                    "NODE: " + this.getPort() + "::" + this.getId() + "\n" +
-                    "SUCC: " + this.getSuccPort() + "::" + this.getSuccID());
+        GV.MY_ID = genHash(GV.MY_PORT);
+        this.initIdPortMap(PORTS);
+        this.initNodeIDList(PORTS);
+        this.initNeighbourInfo();
+        this.initReplicaPorts();
+        Log.e(TAG, "Dynamo Info: \n" + "PRED: " + GV.PRED_PORT + "::" + GV.PRED_ID + "\n" +
+                    "NODE: " + GV.MY_PORT + "::" + GV.MY_ID + "\n" +
+                    "SUCC: " + GV.SUCC_PORT + "::" + GV.SUCC_ID);
     }
 
     static public Dynamo getInstance() {
@@ -44,14 +36,7 @@ public class Dynamo {
         return instance;
     }
 
-    public String getPort() {return this.port;}
-    public String getId() {return this.id;}
-    public String getSuccPort() {return this.succPort;}
-    public String getSuccID() {return this.succID;}
-    public String getPredPort() {return this.predPort;}
-    public String getPredID() {return this.predID;}
-
-    static synchronized boolean detectSkipMsg(String key, String sndPort, String tgtPort) {
+    static boolean detectSkipMsg(String key, String sndPort, String tgtPort) {
         // ONLY FOR INSERT AND DELETE
         String TAG = "DYNAMO DETECT SKIP";
         String kid = Dynamo.genHash(key);
@@ -99,114 +84,115 @@ public class Dynamo {
     // ALREADY TEST
     static String getFirstPort(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
-        String firstPort = GV.idPortMap.get(perferIdList.get(0));
-        Log.d(TAG, "My port " + GV.MY_PORT + " is equal to first? " + firstPort + "\nin" +
-                getPerferPortList(perferIdList).toString() + " ~" + kid);
+        String firstPort = GV.ID_PORT_MAP.get(perferIdList.get(0));
+//        Log.d(TAG, "My port " + GV.MY_PORT + " is equal to first? " + firstPort + "\nin" +
+//                getPerferPortList(perferIdList).toString() + " ~" + kid);
         return firstPort;
     }
 
     static String getLastPort(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
-        String lastPort = GV.idPortMap.get(perferIdList.get(N-1));
-        Log.d(TAG, "My port " + GV.MY_PORT + " is equal to last? " + lastPort + "\nin" +
-                getPerferPortList(perferIdList).toString() + " ~" + kid);
+        String lastPort = GV.ID_PORT_MAP.get(perferIdList.get(N-1));
+//        Log.d(TAG, "My port " + GV.MY_PORT + " is equal to last? " + lastPort + "\nin" +
+//                getPerferPortList(perferIdList).toString() + " ~" + kid);
         return lastPort;
     }
 
     static boolean isFirstNode(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
         String firstId = perferIdList.get(0);
-        Log.d(TAG, "My id " + GV.MY_ID  + " is equal to first? " + firstId + "\nin" +
-                perferIdList.toString());
+//        Log.d(TAG, "My id " + GV.MY_ID  + " is equal to first? " + firstId + "\nin" + perferIdList.toString());
         return GV.MY_ID.equals(firstId);
     }
 
     static boolean isLastNode(String kid) {
         ArrayList<String> perferIdList = getPerferIdList(kid);
         String lastId = perferIdList.get(N-1);
-        Log.d(TAG, "My id " + GV.MY_ID + " is equal to last? " + lastId + "\nin" +
-                perferIdList.toString());
+//        Log.d(TAG, "My id " + GV.MY_ID + " is equal to last? " + lastId + "\nin" + perferIdList.toString());
         return GV.MY_ID.equals(lastId);
     }
 
     static String getSuccPortOfPort(String port) {
         String pid = genHash(port);
-        int pidIndex = GV.nodeIdList.indexOf(pid);
-        String succId = GV.nodeIdList.get(pidIndex+1);
-        String succPort = GV.idPortMap.get(succId);
-        Log.e("DYNAMO INFO", port + "\'s SUCC PORT: " + succPort);
+        int pidIndex = GV.NODE_ID_LIST.indexOf(pid);
+        String succId = GV.NODE_ID_LIST.get(pidIndex+1);
+        String succPort = GV.ID_PORT_MAP.get(succId);
+//        Log.e("DYNAMO INFO", port + "\'s SUCC PORT: " + succPort);
         return succPort;
     }
 
     static String getPredPortOfPort(String port) {
         String pid = genHash(port);
-        int pidIndex = GV.nodeIdList.indexOf(pid);
+        int pidIndex = GV.NODE_ID_LIST.indexOf(pid);
         if (pidIndex==0) {
-            pidIndex = GV.nodeIdList.lastIndexOf(pid);
+            pidIndex = GV.NODE_ID_LIST.lastIndexOf(pid);
         }
-        String predId = GV.nodeIdList.get(pidIndex-1);
-        String predPort = GV.idPortMap.get(predId);
-        Log.e("DYNAMO INFO", port + "\'s PRED PORT: " + predPort);
+        String predId = GV.NODE_ID_LIST.get(pidIndex-1);
+        String predPort = GV.ID_PORT_MAP.get(predId);
+//        Log.e("DYNAMO INFO", port + "\'s PRED PORT: " + predPort);
         return predPort;
     }
 
-    synchronized static ArrayList<String> getPerferIdList(String kid) {
+    static ArrayList<String> getPerferIdList(String kid) {
         for (int i=1; i<6; i++) {
-            if (inInterval(kid, GV.nodeIdList.get(i-1), GV.nodeIdList.get(i))) {
+            if (inInterval(kid, GV.NODE_ID_LIST.get(i-1), GV.NODE_ID_LIST.get(i))) {
                 ArrayList<String> perferIdList = new ArrayList<String>(0);
-                perferIdList.addAll(GV.nodeIdList.subList(i, i+N));
-                Log.d(TAG, kid + " -> " + perferIdList.toString());
+                perferIdList.addAll(GV.NODE_ID_LIST.subList(i, i+N));
+                //Log.d(TAG, kid + " -> " + perferIdList.toString());
                 return perferIdList;
             }
         }
         return null;
     }
 
-    synchronized static ArrayList<String> getPerferPortList(String kid) {
+    static ArrayList<String> getPerferPortList(String kid) {
         return getPerferPortList(getPerferIdList(kid));
     }
 
-    synchronized static ArrayList<String> getPerferPortList(ArrayList<String> perferIdList) {
+    static ArrayList<String> getPerferPortList(ArrayList<String> perferIdList) {
         ArrayList<String> ports = new ArrayList<String>();
         for(String id: perferIdList) {
-            ports.add(GV.idPortMap.get(id));
+            ports.add(GV.ID_PORT_MAP.get(id));
         }
         return ports;
     }
 
     private void initNodeIDList(ArrayList<String> ports) {
         for(String port: ports) {
-            GV.nodeIdList.add(genHash(port));
+            GV.NODE_ID_LIST.add(genHash(port));
         }
-        Collections.sort(GV.nodeIdList);
-        GV.nodeIdList.addAll(GV.nodeIdList.subList(0, N));
-        Log.e(TAG, "INIT NODE-ID-LIST: " + GV.nodeIdList.toString());
+        Collections.sort(GV.NODE_ID_LIST);
+        GV.NODE_ID_LIST.addAll(GV.NODE_ID_LIST.subList(0, N));
+        Log.e(TAG, "INIT NODE-ID-LIST: " + GV.NODE_ID_LIST.toString());
     }
 
     private void initIdPortMap(ArrayList<String> ports) {
         for(String port: ports) {
             String nodeId = genHash(port);
-            GV.idPortMap.put(nodeId, port);
+            GV.ID_PORT_MAP.put(nodeId, port);
         }
-        Log.e(TAG, "INIT ID-PORT-MAP: " + GV.idPortMap.toString());
+        Log.e(TAG, "INIT ID-PORT-MAP: " + GV.ID_PORT_MAP.toString());
     }
 
     private void initNeighbourInfo() {
-        int index = GV.nodeIdList.indexOf(this.id);
+        int index = GV.NODE_ID_LIST.indexOf(GV.MY_ID);
         Log.e(TAG, "" + index);
         if (index == 0) {
-            index = GV.nodeIdList.lastIndexOf(this.id);
+            index = GV.NODE_ID_LIST.lastIndexOf(GV.MY_ID);
         }
+        GV.PRED_ID = GV.NODE_ID_LIST.get(index-1);
+        GV.SUCC_ID = GV.NODE_ID_LIST.get(index+1);
+        GV.PRED_PORT = GV.ID_PORT_MAP.get(GV.PRED_ID);
+        GV.SUCC_PORT = GV.ID_PORT_MAP.get(GV.SUCC_ID);
+    }
 
-        this.predID = GV.nodeIdList.get(index-1);
-        this.succID = GV.nodeIdList.get(index+1);
-        GV.PRED_ID = this.predID;
-        GV.SUCC_ID = this.succID;
-
-        this.predPort = GV.idPortMap.get(this.predID);
-        this.succPort = GV.idPortMap.get(this.succID);
-        GV.PRED_PORT = this.predPort;
-        GV.SUCC_PORT = this.succPort;
+    private void initReplicaPorts() {
+        String tmpPort = GV.MY_PORT;
+        for (int i=0; i<N; i++) {
+            if (!GV.REPLICA_PORTS.contains(tmpPort))
+                GV.REPLICA_PORTS.add(tmpPort);
+            tmpPort = getPredPortOfPort(tmpPort);
+        }
     }
 
     static String genHash(String input) {
