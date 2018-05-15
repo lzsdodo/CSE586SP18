@@ -17,7 +17,84 @@ public class SimpleDynamoProvider extends ContentProvider {
 
     private SQLiteHelper dbHelper;
 
-    public Cursor dbQuery(String key, String cmdPort) {
+
+    // API Layer
+    @Override
+    public Cursor query(Uri uri, String[] projection, String selection,
+                        String[] selectionArgs, String sortOrder) {
+        String cmdPort = null;
+        String timeoutPort = null;
+        if (selectionArgs!=null) {
+            switch (selectionArgs.length) {
+                case 1:
+                    cmdPort = selectionArgs[0];
+                    break;
+                case 2:
+                    cmdPort = selectionArgs[0];
+                    timeoutPort = selectionArgs[1];
+                    break;
+                default:
+                    Log.e(TAG, "query: selArgs ERROR");
+                    break;
+            }
+        }
+
+        Cursor c = this.dbQuery(selection, cmdPort, timeoutPort);
+        return c;
+    }
+
+    @Override
+    synchronized public Uri insert(Uri uri, ContentValues values) {
+        String cmdPort = values.getAsString("cmdPort");
+        values.remove("cmdPort");
+
+        boolean allowSend = true;
+        String flag = values.getAsString("sendFlag");
+        if (flag != null) {
+            values.remove("sendFlag");
+            allowSend = false;
+        }
+
+        String timeoutPort = values.getAsString("timeoutPort");
+        if (timeoutPort!=null) {
+            values.remove(timeoutPort);
+        }
+
+        this.dbInsert(values, cmdPort, allowSend, timeoutPort);
+        return uri;
+    }
+
+    @Override
+    synchronized public int delete(Uri uri, String selection, String[] selectionArgs) {
+        assert selectionArgs!=null;
+
+        String cmdPort = null;
+        String timeoutPort = null;
+        boolean allowSend = true;
+
+        switch (selectionArgs.length) {
+            case 0: break;
+            case 1:
+                cmdPort = selectionArgs[0];
+                break;
+            case 2:
+                cmdPort = selectionArgs[0];
+                allowSend = false;
+                break;
+            case 3:
+                cmdPort = selectionArgs[0];
+                allowSend = false;
+                timeoutPort = selectionArgs[2];
+                break;
+            default: break;
+        }
+
+        return this.dbDelete(selection, cmdPort, allowSend, timeoutPort);
+    }
+
+
+    // Logic layer
+    public Cursor dbQuery(String key, String cmdPort, String timoutPort) {
         Cursor c = null;
         String kid = Dynamo.genHash(key);
         String lastPort = Dynamo.getLastPort(kid);
@@ -33,7 +110,11 @@ public class SimpleDynamoProvider extends ContentProvider {
 
             if (key.equals("@")) {
                 Log.d("L-QUERY", "2. QUERY @");
-                c = this.queryAll();
+                if (timoutPort==null) {
+                    c = this.queryAll();
+                } else {
+                    c = this.queryAllTT(timoutPort); // Timeout Port
+                }
                 c.moveToFirst();
                 return c;
             }
@@ -52,9 +133,9 @@ public class SimpleDynamoProvider extends ContentProvider {
                     GV.resultAllMap = this.cursorToHashMap(c);
 
                     // 1. tell succ nodes
-                    GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                            GV.MY_PORT, GV.SUCC_PORT, "*"));
-                    Log.d("L-QUERY", "3. SEND * TO SUCC " + GV.SUCC_PORT);
+                    GV.msgSendQ.offer(new MSG(MSG.TYPE.QUERY,
+                            GV.PRED_PORT, "*", "???"));
+                    Log.d("L-QUERY", "3. SEND * TO PRED " + GV.PRED_PORT);
 
                     // 2. wait for all nodes result
                     GV.queryAllReturnPort.clear();
@@ -78,8 +159,8 @@ public class SimpleDynamoProvider extends ContentProvider {
                         if (c.getCount() == 0) {
                             GV.resultOneMap.clear();
                             // Tell pred node to search for me
-                            GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                                    GV.MY_PORT, GV.PRED_PORT, key));
+                            GV.msgSendQ.offer(new MSG(MSG.TYPE.QUERY,
+                                    GV.PRED_PORT, key, "???"));
                             Log.d("L-QUERY", "3. SEND TO PRED " + GV.PRED_PORT + " ~" + key);
 
                             // wait for result
@@ -93,8 +174,8 @@ public class SimpleDynamoProvider extends ContentProvider {
                     } else {
                         // 节点非 perferlist 最后
                         GV.resultOneMap.clear();
-                        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                                GV.MY_PORT, lastPort, key));
+                        GV.msgSendQ.offer(new MSG(MSG.TYPE.QUERY,
+                                lastPort, key, "???"));
                         Log.d("L-QUERY", "3. SEND TO LAST " + lastPort + " ~" + key);
 
                         // wait for result
@@ -127,23 +208,22 @@ public class SimpleDynamoProvider extends ContentProvider {
                 c.moveToFirst();
 
                 for (Entry entry: this.cursorToHashMap(c).entrySet()) {
-                    GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESULT_ALL,
-                            cmdPort, cmdPort, entry.getKey().toString(), entry.getValue().toString()));
+                    GV.msgSendQ.offer(new MSG(MSG.TYPE.RESULT_ALL, cmdPort, cmdPort,
+                            entry.getKey().toString(), entry.getValue().toString()));
                 }
-                GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESULT_ALL_FLAG,
-                        cmdPort, cmdPort, "___"));
+                GV.msgSendQ.offer(new MSG(MSG.TYPE.RESULT_ALL_FLAG, cmdPort, cmdPort));
 
                 // 判断是否最后节点
-                if (cmdPort.equals(GV.SUCC_PORT)) {
+                if (cmdPort.equals(GV.PRED_PORT)) {
                     // DONE: this node is the pred node of the cmd node
-                    GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESULT_ALL_COMLETED,
-                            cmdPort, cmdPort, "*"));
+                    GV.msgSendQ.offer(new MSG(MSG.TYPE.RESULT_ALL_COMLETED,
+                            cmdPort, cmdPort, "*", "???"));
                     Log.d("E-QUERY", "2. QUERY * DONE");
 
                 } else {
-                    GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                            cmdPort, GV.SUCC_PORT,"*"));
-                    Log.d("E-QUERY", "2. QUERY * AND SEND TO SUCC " + GV.SUCC_PORT);
+                    GV.msgSendQ.offer(new MSG(MSG.TYPE.QUERY,
+                            cmdPort, GV.PRED_PORT,"*", "???"));
+                    Log.d("E-QUERY", "2. QUERY * AND SEND TO PRED " + GV.PRED_PORT);
                 }
 
             }
@@ -156,14 +236,14 @@ public class SimpleDynamoProvider extends ContentProvider {
 
                     if (firstPort.equals(GV.MY_PORT)) {
                         // 到头了，重新搜索
-                        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                                cmdPort, lastPort, key));
-                        Log.d("E-QUERY", "3. SEND TO LAST " + lastPort + " ~" + key);
+                        GV.msgSendQ.offer(new MSG(MSG.TYPE.QUERY,
+                                cmdPort, GV.MY_PORT, key, "???"));
+                        Log.d("E-QUERY", "3. SEND TO LAST " + GV.MY_PORT + " ~" + key);
 
                     } else {
                         // 没到头，向前搜索
-                        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.QUERY,
-                                cmdPort, GV.PRED_PORT, key));
+                        GV.msgSendQ.offer(new MSG(MSG.TYPE.QUERY,
+                                cmdPort, GV.PRED_PORT, key, "???"));
                         Log.d("E-QUERY", "3. SEND TO PRED " + GV.PRED_PORT + " ~" + key);
                     }
                 } else {
@@ -171,7 +251,7 @@ public class SimpleDynamoProvider extends ContentProvider {
                     c.moveToFirst();
                     String resKey = c.getString(c.getColumnIndex("key"));
                     String resVal = c.getString(c.getColumnIndex("value"));
-                    GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESULT_ONE,
+                    GV.msgSendQ.offer(new MSG(MSG.TYPE.RESULT_ONE,
                             cmdPort, cmdPort, resKey, resVal));
                     Log.d("E-QUERY", "3. SEND BACK RESULT TO " + cmdPort + " ~" + key);
                 }
@@ -180,7 +260,7 @@ public class SimpleDynamoProvider extends ContentProvider {
         }
     }
 
-    public void dbInsert(ContentValues cv, String cmdPort, boolean allowSend) {
+    public void dbInsert(ContentValues cv, String cmdPort, boolean allowSend, String timeoutPort) {
         String key = cv.getAsString("key");
         String val = cv.getAsString("value");
         String kid = Dynamo.genHash(key);
@@ -192,14 +272,14 @@ public class SimpleDynamoProvider extends ContentProvider {
             Log.d("L-INSERT", "1. " + Dynamo.getPerferPortList(kid) + " ~~~ " +  key + "::" + kid);
 
             if (firstPort.equals(GV.MY_PORT)) {
-                this.insertOne(cv);
-                GV.msgSendQ.offer(new NMessage(NMessage.TYPE.INSERT,
+                this.insertOne(cv); // cv: key, value, port
+                GV.msgSendQ.offer(new MSG(MSG.TYPE.INSERT,
                         GV.MY_PORT, GV.SUCC_PORT, key, val));
                 Log.d("L-INSERT", "2. SEND TO SUCC " + GV.SUCC_PORT + " ~" + key);
 
             } else {
                 Log.d("L-INSERT", "2. SEND TO FIRST " + firstPort + " ~" + key);
-                GV.msgSendQ.offer(new NMessage(NMessage.TYPE.INSERT,
+                GV.msgSendQ.offer(new MSG(MSG.TYPE.INSERT,
                         GV.MY_PORT, firstPort, key, val));
             }
         }
@@ -208,25 +288,30 @@ public class SimpleDynamoProvider extends ContentProvider {
             // 外部命令
             // 列表中
             Log.d("E-INSERT", "1. " + Dynamo.getPerferPortList(kid) + " ~~~ " + key + "::" + kid);
-            this.insertOne(cv);
-            if (allowSend) {
-                if (!Dynamo.isLastNode(kid)) {
-                    // NOT FINAL NODE & SEND TO SUCC
-                    GV.msgSendQ.offer(new NMessage(NMessage.TYPE.INSERT,
-                            cmdPort, GV.SUCC_PORT, key, val));
-                    Log.d("E-INSERT", "2. INSERT AND SEND TO SUCC " + GV.SUCC_PORT + " ~" + key);
+            if (timeoutPort == null) {
+                this.insertOne(cv); // cv: key, value
+                if (allowSend) {
+                    if (!Dynamo.isLastNode(kid)) {
+                        // NOT FINAL NODE & SEND TO SUCC
+                        GV.msgSendQ.offer(new MSG(MSG.TYPE.INSERT,
+                                cmdPort, GV.SUCC_PORT, key, val));
+                        Log.d("E-INSERT", "2. INSERT AND SEND TO SUCC " + GV.SUCC_PORT + " ~" + key);
+
+                    } else {
+                        Log.d("E-INSERT", "2. UPDATE INSERT");
+                    }
 
                 } else {
-                    Log.d("E-INSERT", "2. UPDATE INSERT");
+                    Log.d("E-INSERT", "2. INSERT LOCAL AS LAST");
                 }
 
             } else {
-                Log.d("E-INSERT", "2. INSERT LOCAL AS LAST");
+                this.insertOneTT(cv); // cv: key, value, port
             }
         }
     }
 
-    public int dbDelete(String key, String cmdPort, boolean allowSend) {
+    public int dbDelete(String key, String cmdPort, boolean allowSend, String timeoutPort) {
         int affectedRows = 0;
         String kid = Dynamo.genHash(key);
         String firstPort = Dynamo.getFirstPort(kid);
@@ -239,15 +324,19 @@ public class SimpleDynamoProvider extends ContentProvider {
 
             // "@"
             if (key.equals("@")) {
-                affectedRows = this.deleteAll();
+                if (timeoutPort == null) {
+                    affectedRows = this.deleteAll();
+                } else {
+                    affectedRows = this.deleteAllTT(timeoutPort);
+                }
                 Log.d("L-DELETE", "2. " + "EXECUTE @");
             }
 
             // "*"
             if (key.equals("*")) {
                 affectedRows = this.deleteAll();
-                GV.msgSendQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                        GV.MY_PORT, GV.SUCC_PORT, key));
+                GV.msgSendQ.offer(new MSG(MSG.TYPE.DELETE,
+                        GV.MY_PORT, GV.SUCC_PORT, key, "xxx"));
                 Log.d("L-DELETE", "2. SEND * TO SUCC " + GV.SUCC_PORT);
 
             }
@@ -255,13 +344,13 @@ public class SimpleDynamoProvider extends ContentProvider {
             else {
                 if (firstPort.equals(GV.MY_PORT)) {
                     affectedRows = this.deleteOne(key);
-                    GV.msgRecvQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                            GV.MY_PORT, GV.SUCC_PORT, key));
+                    GV.msgRecvQ.offer(new MSG(MSG.TYPE.DELETE,
+                            GV.MY_PORT, GV.SUCC_PORT, key, "xxx"));
                     Log.d("L-DELETE", "2. SEND TO SUCC " + GV.SUCC_PORT + " ~ " + key);
 
                 } else {
-                    GV.msgSendQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                            GV.MY_PORT, firstPort, key));
+                    GV.msgSendQ.offer(new MSG(MSG.TYPE.DELETE,
+                            GV.MY_PORT, firstPort, key, "xxx"));
                     Log.d("L-DELETE", "2. DELETE LOCAL & SEND TO SUCC " + GV.SUCC_PORT + " ~ " + key);
                 }
             }
@@ -285,8 +374,8 @@ public class SimpleDynamoProvider extends ContentProvider {
                 } else {
                     // GO ON, Send to next node
                     if (allowSend) {
-                        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                                cmdPort, GV.SUCC_PORT,"*"));
+                        GV.msgSendQ.offer(new MSG(MSG.TYPE.DELETE,
+                                cmdPort, GV.SUCC_PORT,"*", "xxx"));
                         Log.d("E-DELETE", "3. SEND * TO SUCC " + GV.SUCC_PORT);
                     }
                 }
@@ -300,8 +389,8 @@ public class SimpleDynamoProvider extends ContentProvider {
                 if (allowSend) {
                     if (!Dynamo.isLastNode(kid)) {
                         // SEND TO SUCC
-                        GV.msgSendQ.offer(new NMessage(NMessage.TYPE.DELETE,
-                                cmdPort, GV.SUCC_PORT, key));
+                        GV.msgSendQ.offer(new MSG(MSG.TYPE.DELETE,
+                                cmdPort, GV.SUCC_PORT, key, "xxx"));
                         Log.d("E-DELETE", "3. SEND TO SUCC " + GV.SUCC_PORT + " ~" + key);
                     } else {
                         Log.d("E-DELETE", "3. UPDATE DELETE " + key);
@@ -316,63 +405,93 @@ public class SimpleDynamoProvider extends ContentProvider {
         return affectedRows;
     }
 
+
     // Basic insert, query and delete operation on database
+    private void insertOne(ContentValues values) {
+        long newRowId = this.dbHelper.getWritableDatabase().insertWithOnConflict(
+                SQLiteHelper.LOCAL_TABLE, null,
+                values, SQLiteDatabase.CONFLICT_IGNORE);
+        Log.v("INSERT ONE LOCAL", "ROW = " + newRowId + "; KV = " +
+                values.getAsString("key") + "<>" + values.getAsString("value"));
+    }
+
     private Cursor queryOne(String key) {
         String[] columns = new String[] {SQLiteHelper.COL_NAME_KEY, SQLiteHelper.COL_NAME_VALUE};
         String selection = SQLiteHelper.COL_NAME_KEY + "=?";
         String[] selectedKey = new String[] {key};
 
         Cursor c = this.dbHelper.getReadableDatabase().query(
-                SQLiteHelper.TABLE_NAME, columns, selection, selectedKey,
+                SQLiteHelper.LOCAL_TABLE, columns, selection, selectedKey,
                 null, null, null, "1");
         c.moveToFirst();
 
         if (c.getCount() == 0) {
             Log.e("QUERY MISS", "SEARCH FROM PRED NODE");
         } else {
-            Log.v("QUERY", "Key<>Val=" + key + "<>" + c.getString(c.getColumnIndex("value")));
+            Log.v("QUERY", "KV = " + key + ", " + c.getString(c.getColumnIndex("value")));
         }
         return c;
     }
 
     private Cursor queryAll() {
         String[] columns = new String[] {SQLiteHelper.COL_NAME_KEY, SQLiteHelper.COL_NAME_VALUE};
-
         Cursor c = this.dbHelper.getReadableDatabase().query(
-                SQLiteHelper.TABLE_NAME, columns, null, null,
+                SQLiteHelper.LOCAL_TABLE, columns, null, null,
                 null, null, null);
         c.moveToFirst();
-
         Log.v("QUERY ALL", c.getCount() + " ROWS.");
         return c;
-    }
-
-    private void insertOne(ContentValues values) {
-        long newRowId = this.dbHelper.getWritableDatabase().insertWithOnConflict(
-                SQLiteHelper.TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_IGNORE);
-
-        Log.v("INSERT ONE", "ROW=" + newRowId + "; Key<>Val=" +
-                values.getAsString("key") + "<>" + values.getAsString("value"));
     }
 
     private int deleteOne(String key) {
         String selection = SQLiteHelper.COL_NAME_KEY + "=?";
         String[] selectedKey = new String[] {key};
-
         int affectedRows = this.dbHelper.getWritableDatabase().delete(
-                SQLiteHelper.TABLE_NAME, selection, selectedKey);
-
-        Log.v("DELETE ONE", "Key=" + key);
+                SQLiteHelper.LOCAL_TABLE, selection, selectedKey);
+        Log.v("DELETE ONE", "Key = " + key);
         return affectedRows;
     }
 
     private int deleteAll() {
-        //Log.e("ORIGINAL ROWS", this.countRows() + " ROWS.");
         int affectedRows = this.dbHelper.getWritableDatabase().delete(
-                SQLiteHelper.TABLE_NAME, null, null);
+                SQLiteHelper.LOCAL_TABLE, null, null);
         Log.v("DELETE ALL", affectedRows + " ROWS.");
+        // this.countRows();
         return affectedRows;
     }
+
+    // Timeout Table
+    private void insertOneTT(ContentValues values) {
+        // values: key, value, port
+        long newRowId = this.dbHelper.getWritableDatabase().insertWithOnConflict(
+                SQLiteHelper.TIMEOUT_TABLE, null,
+                values, SQLiteDatabase.CONFLICT_IGNORE);
+        Log.v("INSERT ONE", "ROW = " + newRowId +
+                "; KVP = " + values.getAsString("key") +
+                "<>" + values.getAsString("value") +
+                "<>" + values.getAsString("port"));
+    }
+
+    private Cursor queryAllTT(String port) {
+        String[] columns = new String[] {SQLiteHelper.COL_NAME_KEY, SQLiteHelper.COL_NAME_VALUE};
+        String selection = SQLiteHelper.COL_NAME_PORT + "=?";
+        Cursor c = this.dbHelper.getReadableDatabase().query(
+                SQLiteHelper.TIMEOUT_TABLE, columns, selection, new String[] {port},
+                null, null, SQLiteHelper.COL_NAME_KEY);
+        c.moveToFirst();
+        Log.v("QUERY ALL", c.getCount() + " ROWS IN PORT " + port);
+        return c;
+    }
+
+    private int deleteAllTT(String port) {
+        //Log.e("ORIGINAL ROWS", this.countRows() + " ROWS.");
+        String selection = SQLiteHelper.COL_NAME_PORT + "=?";
+        int affectedRows = this.dbHelper.getWritableDatabase().delete(
+                SQLiteHelper.TIMEOUT_TABLE, selection, new String[] {port});
+        Log.v("DELETE ALL", affectedRows + " ROWS IN PORT " + port);
+        return affectedRows;
+    }
+
 
     private Cursor makeCursor(HashMap<String, String> kvMap) {
         String[] attributes = {"_id", "key", "value"};
@@ -399,48 +518,11 @@ public class SimpleDynamoProvider extends ContentProvider {
     }
 
     @Override
-    public Cursor query(Uri uri, String[] projection, String selection,
-                                     String[] selectionArgs, String sortOrder) {
-        String cmdPort = (selectionArgs == null) ? null : selectionArgs[0];
-        Cursor c = this.dbQuery(selection, cmdPort);
-        return c;
-    }
-
-    @Override
-    synchronized public Uri insert(Uri uri, ContentValues values) {
-        String cmdPort = values.getAsString("cmdPort");
-        values.remove("cmdPort");
-
-        boolean allowSend = true;
-        String flag = values.getAsString("allowSend");
-        if (flag != null) {
-            values.remove("allowSend");
-            allowSend = false;
-        }
-
-        this.dbInsert(values, cmdPort, allowSend);
-        return uri;
-    }
-
-    @Override
-    synchronized public int delete(Uri uri, String selection, String[] selectionArgs) {
-        String cmdPort = null;
-        boolean allowSend = true;
-        if (selectionArgs != null) {
-            cmdPort = selectionArgs[0];
-            if (selectionArgs.length == 2) {
-                allowSend = false;
-            }
-        }
-        return this.dbDelete(selection, cmdPort, allowSend);
-    }
-
-    @Override
 	public boolean onCreate() {
         this.dbHelper = SQLiteHelper.getInstance(getContext());
         if (GV.deleteTable) {
-            // Clean Table
-            this.dbHelper.getWritableDatabase().execSQL("DELETE FROM " + SQLiteHelper.TABLE_NAME + ";");
+            this.dbHelper.getWritableDatabase().execSQL("DELETE FROM " + SQLiteHelper.LOCAL_TABLE + ";");
+            this.dbHelper.getWritableDatabase().execSQL("DELETE FROM " + SQLiteHelper.TIMEOUT_TABLE + ";");
         }
         return true;
 	}

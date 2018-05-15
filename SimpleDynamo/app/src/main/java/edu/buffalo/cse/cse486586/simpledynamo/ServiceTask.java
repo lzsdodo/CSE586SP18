@@ -3,7 +3,10 @@ package edu.buffalo.cse.cse486586.simpledynamo;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.os.AsyncTask;
+import android.os.Message;
 import android.util.Log;
+
+import junit.framework.Assert;
 
 import java.util.Queue;
 
@@ -14,6 +17,8 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
     private ContentResolver qCR;
     private long lastCheckTime;
+    private long deltaCheckTime;
+    private int confirmLostTime;
 
     @Override
     protected Void doInBackground (ContentResolver... cr) {
@@ -21,153 +26,102 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
         this.qCR = cr[0];
         this.lastCheckTime = System.currentTimeMillis();
+        this.deltaCheckTime = 100;
+        this.confirmLostTime = 1000;
 
         while (true) {
             try {
-
-                // TODO Update Service
-                if (!GV.msgUpdateRecvQ.isEmpty()) {
-                    NMessage msg = GV.msgUpdateRecvQ.poll();
-                    this.updateSerive(msg);
-                }
-
-                // TODO Normal Service
-                if (!(GV.msgRecvQ.isEmpty())) {
-                    NMessage msg = GV.msgRecvQ.poll();
-                    this.normalSerive(msg);
-                }
-
-                // TODO Signal Service
-                // Check latest msg that wait to confirm
-                if (System.currentTimeMillis() - this.lastCheckTime > 200) {
-                    this.signalService();
+                if (System.currentTimeMillis() - this.lastCheckTime > this.deltaCheckTime) {
+                    this.deltaCheckTime = this.checkFailureMsg();
                     this.lastCheckTime = System.currentTimeMillis();
                 }
 
+                if (!GV.msgRecvQ.isEmpty()) {
+                    MSG msgRecv = GV.msgRecvQ.poll();
+
+                    switch (msgRecv.getMsgType()) {
+                        case SIGNAL:
+                            this.handleSignal(msgRecv.getMsgKey());
+                            break;
+
+                        case INSERT:
+                        case QUERY:
+                        case DELETE:
+                            GV.msgSignalSendQ.offer(msgRecv);
+                            this.normalSerive(msgRecv);
+                            break;
+
+                        case RESULT_ONE:
+                        case RESULT_ALL:
+                        case RESULT_ALL_FLAG:
+                        case RESULT_ALL_COMLETED:
+                            this.normalSerive(msgRecv);
+                            break;
+
+                        case RESTART:
+                        case IS_ALIVE:
+                        case RECOVERY:
+                        case LOST_INSERT:
+                        case UPDATE_INSERT:
+                        case UPDATE_COMPLETED:
+                            this.updateSerive(msgRecv);
+                            break;
+
+                        default:
+                            Log.e(TAG, "handleMsg -> SWITCH DEFAULT CASE ERROR: " + msgRecv.toString());
+                            break;
+                    }
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
 
-    private void storeLostMsg(NMessage msg) {
-        NMessage nMsg = msg.copy();
-        if (nMsg.getMsgType().equals(NMessage.TYPE.INSERT)) {
-            nMsg.setMsgType(NMessage.TYPE.UPDATE_INSERT);
-            Queue<NMessage> portQ = GV.notifyPortQueueM.get(nMsg.getTgtPort());
-            portQ.offer(nMsg);
-        }
-    }
-
-    private void handleLostMsg(NMessage msg) {
-        // 1. Set lost
-        String lostPort = msg.getTgtPort();
-        Log.e("LOST PORT", "LOST PORT: " + lostPort);
-
-        String kid = msg.getMsgKey();
-        String firstPort = Dynamo.getFirstPort(kid);
-        String lastPort = Dynamo.getLastPort(kid);
-
-        // 2. Store in memory (if last to insert/delete)
-        // 3. Send to other node (first/second to insert/delete) / local (last to query)
-        Log.e("SKIP LOST PORT", "BEFORE SKIP MSG: " + msg.toString());
-        switch (msg.getMsgType()) {
-            case INSERT:
-                if (!lostPort.equals(lastPort)) {
-                    msg.setTgtPort(Dynamo.getSuccPortOfPort(lostPort));
-                    msg.setSndPort(GV.MY_PORT);
-                    GV.msgSendQ.offer(msg);
-                    // GO ON SEND MSG
-                }
-                //this.sendLostMsg(msg, lostPort);
-                break;
-
-            case QUERY:
-                if (lostPort.equals(firstPort)) {
-                    msg.setTgtPort(lastPort);
-                } else {
-                    msg.setTgtPort(Dynamo.getPredPortOfPort(lostPort));
-                }
-                msg.setSndPort(GV.MY_PORT);
-                GV.msgSendQ.offer(msg);
-                break;
-
-            default:
-                break;
-        }
-        Log.e("SKIP LOST PORT", "AFTER SKIP MSG: " + msg.toString());
-    }
-
-    private void sendLostMsg(NMessage msg, String lostPort) {
-
-        // send to second port
-        if (!GV.MY_PORT.equals(Dynamo.getPredPortOfPort(lostPort))) {
-            NMessage nMsg = msg.copy();
-            nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
-            nMsg.setCmdPort(lostPort);
-            nMsg.setSndPort(GV.MY_PORT);
-            nMsg.setTgtPort(Dynamo.getPredPortOfPort(lostPort));
-            GV.msgSendQ.offer(nMsg);
-        } else {
-            NMessage nMsg = msg.copy();
-            nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
-            nMsg.setCmdPort(lostPort);
-            nMsg.setSndPort(GV.MY_PORT);
-            nMsg.setTgtPort(GV.PRED_PORT);
-            GV.msgSendQ.offer(nMsg);
-        }
-
-        if (!GV.MY_PORT.equals(Dynamo.getSuccPortOfPort(lostPort))) {
-            NMessage nMsg = msg.copy();
-            nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
-            nMsg.setCmdPort(lostPort);
-            nMsg.setSndPort(GV.MY_PORT);
-            nMsg.setTgtPort(Dynamo.getSuccPortOfPort(lostPort));
-            GV.msgSendQ.offer(nMsg);
-        } else {
-            NMessage nMsg = msg.copy();
-            nMsg.setMsgType(NMessage.TYPE.LOST_INSERT);
-            nMsg.setCmdPort(lostPort);
-            nMsg.setSndPort(GV.MY_PORT);
-            nMsg.setTgtPort(GV.SUCC_PORT);
-            GV.msgSendQ.offer(nMsg);
-        }
-
-    }
-
-    private void signalService() {
-        if (!(GV.waitMsgIdQueue.isEmpty())) {
-            String msgId = GV.waitMsgIdQueue.peek().trim();
+    /* Main Service */
+    // Detect Failure
+    private long checkFailureMsg() {
+        while (!GV.waitMsgIdQueue.isEmpty()) {
+            String msgId = GV.waitMsgIdQueue.peek();
 
             if (!GV.waitMsgIdSet.contains(msgId)) {
-                // Not contain this wait msg anymore
+                // Already recvive signal for that msg
                 GV.waitMsgIdQueue.poll(); // Remove and check next
                 Log.v("RECEIVE SIGNAL", "ALREADY DELETE FROM WAIT QUEUE: " + msgId);
 
             } else {
-                // TODO Handle LOST MSG
-                int lastTime = GV.waitTimeMap.get(msgId);
+                // TODO Handle MSG THAT MAYBE LOST
+                int lastTime = GV.waitMsgTimeMap.get(msgId);
                 int deltaTime = (int) System.currentTimeMillis() - lastTime;
-                if (deltaTime > 800) {
-                    NMessage msg = GV.waitMsgMap.get(msgId);
-                    Log.e("SIGNAL TIMEOUT", lastTime + " (delta) " + deltaTime + " for msg: " + msg.toString());
 
-                    GV.resendQueue.offer(msg);
-                    // Store
-                    this.storeLostMsg(msg);
-                    // Handle: Send to next and
-                    this.handleLostMsg(msg);
+                if (deltaTime > this.confirmLostTime) {
+                    MSG msg = GV.waitMsgMap.get(msgId);
+                    this.refreshUI("TIMEOUT MSG: " + msg.toString());
+                    Log.e("TIMEOUT MSG", lastTime + " + " + deltaTime + " (ms) the msg: " + msg.toString());
+
+                    /* HANDLE TIMEOUT MSG */
+                    //GV.resendQ.offer(msg);        // Try resend
+                    this.storeLostMsg(msg);         // Store
+                    this.handleLostMsg(msg);        // Handle: tSend to next and
+
                     // Delete
-                    GV.waitMsgIdSet.remove(msgId);
-                    GV.waitMsgMap.remove(msgId);
                     GV.waitMsgIdQueue.poll();
-                    //this.detectAlives();
+                    GV.waitMsgIdSet.remove(msgId);
+                    GV.waitMsgTimeMap.remove(msgId);
+                    GV.waitMsgMap.remove(msgId);
+
+                } else {
+                    Log.d(TAG, "NOT TIMEOUT YET: " + this.confirmLostTime + " - " + deltaTime);
+                    return this.confirmLostTime - deltaTime;
                 }
             }
         }
+        Log.d(TAG, "NO MSG TO CHECK TIMEOUT: ALL SIGNAL RETURN");
+        return this.confirmLostTime;
     }
 
-    private void normalSerive(NMessage msg) {
+    // Normal Service
+    private void normalSerive(MSG msg) {
         Log.d("HANDLE RECV MSG", "" + msg.toString());
 
         String cmdPort = msg.getCmdPort();
@@ -175,17 +129,21 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
 
             case QUERY:
                 Log.d("HANDLE QUERY", msg.toString());
-                qCR.query(GV.dbUri, null, msg.getMsgKey(), new String[] {cmdPort}, null);
+                qCR.query(GV.dbUri, null, msg.getMsgKey(),
+                        new String[] {cmdPort}, null);
                 break;
 
             case INSERT:
                 Log.d("HANDLE INSERT", msg.getMsgBody());
-                this.normalInsert(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
+                this.detectSkipMsg(msg);
+                this.insert(msg.getMsgKey(), msg.getMsgVal(),
+                        new String[] {cmdPort});
                 break;
 
             case DELETE:
                 Log.d("HANDLE DELETE", msg.toString());
-                qCR.delete(GV.dbUri, msg.getMsgKey(), new String[] {cmdPort});
+                qCR.delete(GV.dbUri, msg.getMsgKey(),
+                        new String[] {cmdPort});
                 break;
 
             case RESULT_ONE:
@@ -219,7 +177,7 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         }
     }
 
-    private void updateSerive(NMessage msg) {
+    private void updateSerive(MSG msg) {
         Log.e("HANDLE UPDATE MSG", msg.toString());
         String cmdPort = msg.getCmdPort();
         switch (msg.getMsgType()) {
@@ -230,22 +188,22 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
                 break;
 
             case IS_ALIVE:
-                GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.RECOVERY,
-                        GV.MY_PORT, msg.getSndPort(), "___"));
+                GV.msgUpdateSendQ.offer(new MSG(MSG.TYPE.RECOVERY,
+                        GV.MY_PORT, msg.getSndPort()));
                 break;
 
             case RECOVERY:
                 this.prepareUpdate(msg.getSndPort());
                 break;
 
-            case UPDATE_INSERT:
-                Log.d("UPDATE_INSERT", msg.toString());
-                this.updateInsert(msg.getMsgKey(), msg.getMsgVal(), cmdPort);
+            case LOST_INSERT:
+                this.saveLostMsg(msg);
                 break;
 
-            case UPDATE_DELETE:
-                Log.d("UPDATE_DELETE", msg.toString());
-                qCR.delete(GV.dbUri, msg.getMsgKey(), new String[] {cmdPort, "notAllowToSend"});
+            case UPDATE_INSERT:
+                Log.d("UPDATE_INSERT", msg.toString());
+                this.insert(msg.getMsgKey(), msg.getMsgVal(),
+                        new String[] {cmdPort, "notAllowSend"});
                 break;
 
             case UPDATE_COMPLETED:
@@ -263,33 +221,178 @@ public class ServiceTask extends AsyncTask<ContentResolver, Void, Void> {
         }
     }
 
-    // TEST
+    private void backupService(MSG msg) {}
+
+    /* Support Functions */
+    // Support Signal Service
+    private void handleLostMsg(MSG msg) {
+        // 1. Set lost
+        String lostPort = msg.getTgtPort();
+        Log.e("LOST PORT", "LOST PORT: " + lostPort);
+
+        String kid = msg.getMsgKey();
+        String firstPort = Dynamo.getFirstPort(kid);
+        String lastPort = Dynamo.getLastPort(kid);
+
+        // 2. Store in memory (if last to insert/delete)
+        // 3. Send to other node (first/second to insert/delete) / local (last to query)
+        Log.e("SKIP LOST PORT", "BEFORE SKIP MSG: " + msg.toString());
+        switch (msg.getMsgType()) {
+            case INSERT:
+                if (!lostPort.equals(lastPort)) {
+                    msg.setTgtPort(Dynamo.getSuccPortOfPort(lostPort));
+                    msg.setSndPort(GV.MY_PORT);
+                    GV.msgSendQ.offer(msg);
+                    // GO ON SEND MSG
+                } else {
+
+                }
+                this.sendLostMsg(msg, lostPort);
+                break;
+
+            case QUERY:
+                if (lostPort.equals(firstPort)) {
+                    msg.setTgtPort(lastPort);
+                } else {
+                    msg.setTgtPort(Dynamo.getPredPortOfPort(lostPort));
+                }
+                msg.setSndPort(GV.MY_PORT);
+                GV.msgSendQ.offer(msg);
+                break;
+
+            default:
+                break;
+        }
+        Log.e("SKIP LOST PORT", "AFTER SKIP MSG: " + msg.toString());
+    }
+
+    private void sendLostMsg(MSG msg, String lostPort) {
+
+        // send to second port
+        if (!GV.MY_PORT.equals(Dynamo.getPredPortOfPort(lostPort))) {
+            MSG nMsg = msg.copy();
+            nMsg.setMsgType(MSG.TYPE.LOST_INSERT);
+            nMsg.setCmdPort(lostPort);
+            nMsg.setSndPort(GV.MY_PORT);
+            nMsg.setTgtPort(Dynamo.getPredPortOfPort(lostPort));
+            GV.msgSendQ.offer(nMsg);
+        } else {
+            MSG nMsg = msg.copy();
+            nMsg.setMsgType(MSG.TYPE.LOST_INSERT);
+            nMsg.setCmdPort(lostPort);
+            nMsg.setSndPort(GV.MY_PORT);
+            nMsg.setTgtPort(GV.PRED_PORT);
+            GV.msgSendQ.offer(nMsg);
+        }
+
+        if (!GV.MY_PORT.equals(Dynamo.getSuccPortOfPort(lostPort))) {
+            MSG nMsg = msg.copy();
+            nMsg.setMsgType(MSG.TYPE.LOST_INSERT);
+            nMsg.setCmdPort(lostPort);
+            nMsg.setSndPort(GV.MY_PORT);
+            nMsg.setTgtPort(Dynamo.getSuccPortOfPort(lostPort));
+            GV.msgSendQ.offer(nMsg);
+        } else {
+            MSG nMsg = msg.copy();
+            nMsg.setMsgType(MSG.TYPE.LOST_INSERT);
+            nMsg.setCmdPort(lostPort);
+            nMsg.setSndPort(GV.MY_PORT);
+            nMsg.setTgtPort(GV.SUCC_PORT);
+            GV.msgSendQ.offer(nMsg);
+        }
+
+    }
+
+
+    // Support Update Service
     private void prepareUpdate(String sndPort) {
-        Queue<NMessage> portQ = GV.notifyPortQueueM.get(sndPort);
+        Queue<MSG> portQ = GV.backupMsgQMap.get(sndPort);
         Log.e("PREPARE UPDATE", "RECOVERING PORT: " + sndPort + " with size " + portQ.size());
 
-        while (!portQ.isEmpty()) {GV.msgUpdateSendQ.offer(portQ.poll());}
-        GV.msgUpdateSendQ.offer(new NMessage(NMessage.TYPE.UPDATE_COMPLETED,
+        while (portQ.peek()!=null) {GV.msgUpdateSendQ.offer(portQ.poll());}
+        GV.msgUpdateSendQ.offer(new MSG(MSG.TYPE.UPDATE_COMPLETED,
                 GV.MY_PORT, sndPort, "FROM "+GV.MY_PORT));
     }
 
-    private void normalInsert(String key, String value, String cmdPort) {
+    private void saveLostMsg(MSG msg) {
+        msg.setMsgType(MSG.TYPE.UPDATE_INSERT);
+        String tgtPort = msg.getCmdPort();
+        msg.setTgtPort(tgtPort);
+        msg.setSndPort(GV.MY_PORT);
+
+        Queue<MSG> portQ = GV.backupMsgQMap.get(tgtPort);
+        portQ.offer(msg);
+    }
+
+    // Support Backup Service
+    private void storeLostMsg(MSG msg) {
+        MSG nMsg = msg.copy();
+        if (nMsg.getMsgType().equals(MSG.TYPE.INSERT)) {
+            nMsg.setMsgType(MSG.TYPE.UPDATE_INSERT);
+            Queue<MSG> portQ = GV.backupMsgQMap.get(nMsg.getTgtPort());
+            portQ.offer(nMsg);
+        }
+    }
+
+
+    // Support Normal Service
+    private void detectSkipMsg(MSG msg) {
+        // skip pred port: [0]/[1]
+        if (Dynamo.detectSkipMsg(msg.getMsgKey(), msg.getSndPort(), msg.getTgtPort())) {
+            MSG nmsg = msg.copy();
+            nmsg.setMsgType(MSG.TYPE.UPDATE_INSERT);
+            nmsg.setSndPort(GV.MY_PORT);
+            nmsg.setTgtPort(GV.PRED_PORT);
+            // TODO:
+            //      Store in database ?
+            //      Save this msg to memory ?
+            Queue<MSG> backupQ = GV.backupMsgQMap.get(msg.getSndPort());
+            backupQ.offer(msg);
+            Log.e("DETECT SKIP MSG", "LOST PRED PORT " + GV.PRED_PORT);
+        }
+
+    }
+
+    private void insert(String key, String value, String[] insertArgs) {
+        Assert.assertNotNull(insertArgs);
+
         ContentValues cv = new ContentValues();
-        cv.put("cmdPort", cmdPort);
         cv.put("key", key);
         cv.put("value", value);
+
+        cv.put("cmdPort", insertArgs[0]);
+        cv.put("location", 0);
+        switch (insertArgs.length) {
+            case 2:
+                cv.put("sendFlag", insertArgs[1]); // For Update/Backup
+                break;
+            case 3:
+                cv.put("sendFlag", insertArgs[1]);
+                cv.put("location", insertArgs[2]); // For Backup
+                break;
+            default: break;
+        }
+
         qCR.insert(GV.dbUri, cv);
         cv.clear();
     }
 
-    private void updateInsert(String key, String value, String cmdPort) {
-        ContentValues cv = new ContentValues();
-        cv.put("cmdPort", cmdPort);
-        cv.put("allowSend", "allowSend");
-        cv.put("key", key);
-        cv.put("value", value);
-        qCR.insert(GV.dbUri, cv);
-        cv.clear();
+
+    private void handleSignal(String msgId) {
+        if (GV.waitMsgIdSet.contains(msgId)) {
+            GV.waitMsgIdSet.remove(msgId);
+            GV.waitMsgMap.remove(msgId);
+            GV.waitMsgTimeMap.remove(msgId);
+        } else {
+            Log.e("RECV SIGNAL", "ALREADY DELETED FOR TIMEOUT ???");
+        }
+    }
+
+    private void refreshUI(String str) {
+        Message uiMsg = new Message();
+        uiMsg.what = SimpleDynamoActivity.UI;
+        uiMsg.obj = str;
+        SimpleDynamoActivity.uiHandler.sendMessage(uiMsg);
     }
 
 }

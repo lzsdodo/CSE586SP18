@@ -17,6 +17,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class SimpleDynamoActivity extends Activity {
 
@@ -65,45 +66,19 @@ public class SimpleDynamoActivity extends Activity {
         mTextView.append("INIT SERVER CLIENT SERVICE TASK\n");
 
         // PORT INFO
-        GV.MY_PORT_INFO = "PRED: " + dynamo.getPredPort() + "; SELF: " + GV.MY_PORT + "; SUCC: " + dynamo.getSuccPort();
-        mTextView.append(GV.MY_PORT_INFO + "\n");
+        mTextView.append("PRED: " + GV.PRED_PORT + "; SELF: " + GV.MY_PORT + "; SUCC: " + GV.SUCC_PORT +
+                "\nREPLICAS PORTS: " + GV.REPLICA_PORTS.toString());
 
-        ArrayList<String> ports = Dynamo.PORTS;
+        ArrayList<String> ports = new ArrayList<String>();
+        ports.addAll(Dynamo.PORTS);
         ports.remove(GV.MY_PORT);
-        Log.d(TAG, ports.toString());
-
         for (String port: ports) {
-            if (port.equals(GV.SUCC_PORT)) {
-                GV.notifyPortQueueM.put(port, GV.notifySuccMsgQ);
-            } else if (port.equals(GV.PRED_PORT)) {
-                GV.notifyPortQueueM.put(port, GV.notifyPredMsgQ);
-            } else {
-                Queue<NMessage> portQ = new LinkedList<NMessage>();
-                GV.notifyPortQueueM.put(port, portQ);
-            }
+            GV.backupMsgQMap.put(port, new LinkedBlockingQueue<MSG>());
+            GV.msgSendQ.offer(new MSG(MSG.TYPE.RESTART, GV.MY_PORT, port));
         }
-
-//        for (String port: ports) {
-//            Queue<NMessage> portQ = GV.notifyPortQueueM.get(port);
-//            portQ.offer(new NMessage(NMessage.TYPE.RESTART, "5554", "5556", "!!!"));
-//            Log.e(TAG, port + ": " + portQ.hashCode() + "");
-//        }
-//        Log.e(TAG,GV.PRED_PORT + ": " + GV.notifyPredMsgQ.poll().toString());
-//        Log.e(TAG, GV.SUCC_PORT + ": " + GV.notifySuccMsgQ.poll().toString());
-
-        this.notifyRestart(ports);
 
         //this.test();
 	}
-
-    private void notifyRestart(ArrayList<String> ports) {
-	    for (int i=0; i<2; i++){
-            for (String port: ports) {
-                GV.msgSendQ.offer(new NMessage(NMessage.TYPE.RESTART,
-                        GV.MY_PORT, port, "_!!!_"));
-            }
-        }
-    }
 
     private void test() {
         Log.e(TAG, "Testing");
@@ -125,12 +100,12 @@ public class SimpleDynamoActivity extends Activity {
         Log.e(TAG, "Perfer Id List: " + perferIdList.toString());
         Log.e(TAG, "Perfer Node List: " + perferPortList.toString());
         Log.e(TAG, "My Port: " + GV.MY_PORT);
-        Log.e(TAG, "First Port: " + dynamo.getFirstPort(kid));
-        Log.e(TAG, dynamo.isFirstNode(kid) + "");
-        Log.e(TAG, dynamo.getSuccPortOfPort(dynamo.getFirstPort(kid)) +
-                "=" + dynamo.getPredPortOfPort(dynamo.getLastPort(kid)));
-        Log.e(TAG, "Last Port: " + dynamo.getLastPort(kid));
-        Log.e(TAG, dynamo.isLastNode(kid) + "");
+        Log.e(TAG, "First Port: " + Dynamo.getFirstPort(kid));
+        Log.e(TAG, Dynamo.isFirstNode(kid) + "");
+        Log.e(TAG, Dynamo.getSuccPortOfPort(Dynamo.getFirstPort(kid)) +
+                "=" + Dynamo.getPredPortOfPort(Dynamo.getLastPort(kid)));
+        Log.e(TAG, "Last Port: " + Dynamo.getLastPort(kid));
+        Log.e(TAG, Dynamo.isLastNode(kid) + "");
     }
 
     private void testTCP() {
@@ -140,9 +115,7 @@ public class SimpleDynamoActivity extends Activity {
         while (true) {
             if (System.currentTimeMillis() > lastTime + 3000) {
                 Dynamo dynamo = Dynamo.getInstance();
-                GV.msgSendQ.offer(new NMessage(
-                        NMessage.TYPE.INSERT,
-                        dynamo.getPort(), dynamo.getPort(),
+                GV.msgSendQ.offer(new MSG(MSG.TYPE.INSERT, GV.MY_PORT, GV.MY_PORT,
                         "xo1R4fhe37p0ee81msccP3tRxB2LrNKJ", "TEST_VALUE"));
                 break;
             }

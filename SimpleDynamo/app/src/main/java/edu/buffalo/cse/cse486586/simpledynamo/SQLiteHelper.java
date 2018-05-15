@@ -23,26 +23,35 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     public static final int    DB_VERSION  = 2;
 
     // table
-    public static final String TABLE_NAME        = "entry";
+    public static final String LOCAL_TABLE       = "local_msg";
+    public static final String TIMEOUT_TABLE     = "timeout_msg";
+
     public static final String COL_NAME_ID       = "_ID";
     public static final String COL_NAME_KEY      = "key";
     public static final String COL_NAME_VALUE    = "value";
-    public static final String COL_NAME_POSITION = "pos";
-    public static final String COL_NAME_VERSION  = "version";
-    public static final String COL_NAME_STATUS   = "missing";
+    public static final String COL_NAME_PORT     = "port";
+    //public static final String COL_NAME_VERSION  = "version";
 
     // sql
-    private static final String SQL_CREATE_ENTRIES = "CREATE TABLE " +
-            TABLE_NAME + " ( " +
+    private static final String SQL_CREATE_LOCAL_TABLE = "CREATE TABLE " +
+            LOCAL_TABLE + " ( " +
             COL_NAME_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
             COL_NAME_KEY + " STRING NOT NULL UNIQUE, " +
             COL_NAME_VALUE + " STRING );";
-            //COL_NAME_POSITION + " STRING + " +
-            //COL_NAME_VERSION + " STRING + " +
-            //COL_NAME_STATUS + " STRING + );";
+            //COL_NAME_VERSION + " STRING );";
 
-    private static final String SQL_ALTER_ENTRIES = "ALTER TABLE " + TABLE_NAME +
-            " ADD COLUMN " + COL_NAME_VALUE + " STRING;";
+    private static final String SQL_CREATE_TIMEOUT_TABLE = "CREATE TABLE " +
+            TIMEOUT_TABLE + " ( " +
+            COL_NAME_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+            COL_NAME_KEY + " STRING NOT NULL UNIQUE, " +
+            COL_NAME_VALUE + " STRING, " +
+            COL_NAME_PORT + " STRING );";
+
+    private static final String SQL_ALTER_LOCAL_TABLE = "ALTER TABLE " +
+            LOCAL_TABLE + " ADD COLUMN " + COL_NAME_VALUE + " STRING;";
+
+    private static final String SQL_ALTER_TIMEOUT_TABLE = "ALTER TABLE " +
+            TIMEOUT_TABLE + " ADD COLUMN " + COL_NAME_VALUE + " STRING;";
 
     private static SQLiteHelper sqlHelper;      // main instance
 
@@ -58,13 +67,18 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL(SQL_CREATE_ENTRIES);
-        Log.v("DATABASE", SQL_CREATE_ENTRIES);
+        db.execSQL(SQL_CREATE_LOCAL_TABLE);
+        db.execSQL(SQL_CREATE_TIMEOUT_TABLE);
+        Log.v("DATABASE", SQL_CREATE_LOCAL_TABLE);
+        Log.v("DATABASE", SQL_CREATE_TIMEOUT_TABLE);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (oldVersion < DB_VERSION) {db.execSQL(SQL_ALTER_ENTRIES);}
+        if (oldVersion < DB_VERSION) {
+            db.execSQL(SQL_ALTER_LOCAL_TABLE);
+            db.execSQL(SQL_ALTER_TIMEOUT_TABLE);
+        }
         // A cache database which its upgrade policy is to simply to discard the data and start over
         // db.execSQL(SQL_DROP_TABLE);
         // onCreate(db);

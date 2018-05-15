@@ -1,6 +1,5 @@
 package edu.buffalo.cse.cse486586.simpledynamo;
 
-
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -31,37 +30,50 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         Log.v(TAG, "Start TcpClientTask.");
 
         while (true) {
-            // 发送心跳信号
-            if (!GV.msgSignalSendQ.isEmpty()) {
-                NMessage recvMsg = GV.msgSignalSendQ.poll();
-                String tgtPort = recvMsg.getSndPort();
-                NMessage singalMsg = new NMessage(NMessage.TYPE.SIGNAL, tgtPort);
-                singalMsg.setMsgKey(recvMsg.getMsgID());
-                this.sendMsg(singalMsg);
+
+            while (!GV.resendQ.isEmpty()) {
+                MSG resendMsg = GV.resendQ.poll();
+                this.sendMsg(resendMsg);
+                Log.e("CLIENT RESEND-MSG", resendMsg.toString());
             }
 
-            // 更新队列
-            if (!GV.msgUpdateSendQ.isEmpty()) {
-                NMessage updateMsg = GV.msgUpdateSendQ.poll();
-                Log.e("SEND UPDATE MSG", updateMsg.toString());
-                this.sendMsg(updateMsg);
-            }
-
-            // 常规信号
             if (!GV.msgSendQ.isEmpty()) {
-                NMessage msg = GV.msgSendQ.poll();
-                this.sendMsg(msg);
-                this.recordWaitMsg(msg); // Send msg and record according to type
-            }
+                MSG sendMsg = GV.msgSendQ.poll();
 
-            if (!GV.resendQueue.isEmpty()) {
-                NMessage msg = GV.resendQueue.poll();
-                this.sendMsg(msg);
+                switch (sendMsg.getMsgType()) {
+
+                    case SIGNAL:
+                        String tgtPort = sendMsg.getSndPort();
+                        MSG singalMsg = new MSG(MSG.TYPE.SIGNAL, GV.MY_PORT, tgtPort);
+                        singalMsg.setMsgKey(sendMsg.getMsgID());
+                        this.sendMsg(singalMsg);
+                        Log.d("CLIENT SIGNAL-MSG", sendMsg.toString());
+                        break;
+
+                    case INSERT:
+                    case DELETE:
+                    case QUERY:
+                        this.sendMsg(sendMsg);
+                        this.recordWaitMsg(sendMsg); // Send msg and record according to type
+                        Log.d("CLIENT NORMAL-MSG", sendMsg.toString());
+                        break;
+
+                    case UPDATE_INSERT:
+                    case UPDATE_COMPLETED:
+                        Log.d("CLIENT UPDATE-MSG", sendMsg.toString());
+                        this.sendMsg(sendMsg);
+                        break;
+
+                    default:
+                        this.sendMsg(sendMsg);
+                        Log.v(TAG, sendMsg.toString());
+                        break;
+                }
             }
         }
     }
 
-    private void recordWaitMsg(NMessage msg) {
+    private void recordWaitMsg(MSG msg) {
         switch (msg.getMsgType()) {
             case QUERY:
             case INSERT:
@@ -81,7 +93,7 @@ public class TcpClientTask extends AsyncTask<Void, Void, Void> {
         }
     }
 
-    synchronized private void sendMsg(NMessage msg) {
+    private void sendMsg(MSG msg) {
         String msgToSend = msg.toString();
         String tgtPort = msg.getTgtPort();
         Integer remotePort = Integer.parseInt(tgtPort) * 2;

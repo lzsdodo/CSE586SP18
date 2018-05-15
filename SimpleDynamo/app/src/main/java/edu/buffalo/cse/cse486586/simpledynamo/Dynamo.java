@@ -187,12 +187,8 @@ public class Dynamo {
     }
 
     private void initReplicaPorts() {
-        String tmpPort = GV.MY_PORT;
-        for (int i=0; i<N; i++) {
-            if (!GV.REPLICA_PORTS.contains(tmpPort))
-                GV.REPLICA_PORTS.add(tmpPort);
-            tmpPort = getPredPortOfPort(tmpPort);
-        }
+        GV.REPLICA_PORTS = new String[]
+                {GV.MY_PORT, GV.PRED_PORT, getPredPortOfPort(GV.PRED_PORT)};
     }
 
     static String genHash(String input) {

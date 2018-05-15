@@ -27,6 +27,18 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
     private InputStream in;
     private BufferedReader br;
 
+    private void init() {
+        try {
+            this.serverSocket = new ServerSocket();
+            this.serverSocket.setReuseAddress(true);
+            this.serverSocket.bind(new InetSocketAddress(SERVER_PORT));
+            Log.v(TAG, "Create a ServerSocket listening on: " + serverSocket.getLocalSocketAddress());
+        } catch (IOException e) {
+            Log.e(TAG, "Can't create a ServerSocket");
+            e.printStackTrace();
+        }
+    }
+
     @Override
     protected Void doInBackground (Void... voids) {
         Log.v(TAG, "Start TcpServerTask.");
@@ -47,7 +59,7 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
 
                     String msgRecvStr = this.br.readLine();
                     Log.v("TCP RECV MSG", msgRecvStr);
-                    this.handleTcpServerMsg(NMessage.parseMsg(msgRecvStr));
+                    GV.msgRecvQ.offer(MSG.parseMsg(msgRecvStr));
 
                     this.br.close();
                     this.in.close();
@@ -81,69 +93,6 @@ public class TcpServerTask extends AsyncTask<Void, Void, Void> {
     @Override
     protected void onPostExecute(Void result) {
         Log.e("LOST SERVER", "SERVER TASK SHOULD NOT BREAK.");
-    }
-
-    private void init() {
-        try {
-            this.serverSocket = new ServerSocket();
-            this.serverSocket.setReuseAddress(true);
-            this.serverSocket.bind(new InetSocketAddress(SERVER_PORT));
-            Log.v(TAG, "Create a ServerSocket listening on: " + serverSocket.getLocalSocketAddress());
-        } catch (IOException e) {
-            Log.e(TAG, "Can't create a ServerSocket");
-            e.printStackTrace();
-        }
-    }
-
-    private void handleTcpServerMsg(NMessage msgRecv) {
-        if (Dynamo.getPerferIdList(Dynamo.genHash(msgRecv.getMsgKey())).indexOf(GV.MY_ID) < 0) {
-            Log.e(TAG, "\n======================\n" + msgRecv.toString() + "\n======================\n" );
-        }
-
-
-        switch (msgRecv.getMsgType()) {
-            case SIGNAL:
-                this.handleSignal(msgRecv.getMsgKey());
-                break;
-
-            case LOST_INSERT:
-            case RESTART:
-            case IS_ALIVE:
-            case RECOVERY:
-            case UPDATE_INSERT:
-            case UPDATE_DELETE:
-            case UPDATE_COMPLETED:
-                GV.msgUpdateRecvQ.offer(msgRecv);
-                break;
-
-            case INSERT:
-            case QUERY:
-            case DELETE:
-                GV.msgSignalSendQ.offer(msgRecv);
-                GV.msgRecvQ.offer(msgRecv);
-                break;
-
-            case RESULT_ONE:
-            case RESULT_ALL:
-            case RESULT_ALL_FLAG:
-            case RESULT_ALL_COMLETED:
-                GV.msgRecvQ.offer(msgRecv);
-                break;
-
-            default:
-                Log.e(TAG, "handleMsg -> SWITCH DEFAULT CASE ERROR: " + msgRecv.toString());
-                break;
-        }
-    }
-
-    private void handleSignal(String msgId) {
-        if (GV.waitMsgIdSet.contains(msgId)) {
-            GV.waitMsgIdSet.remove(msgId);
-            GV.waitMsgMap.remove(msgId);
-            GV.waitMsgTimeMap.remove(msgId);
-        } else {
-            Log.e("RECV SIGNAL", "ALREADY DELETED FOR TIMEOUT ???");
-        }
     }
 
 }
